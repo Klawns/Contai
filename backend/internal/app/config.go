@@ -3,6 +3,8 @@ package app
 import (
 	"fmt"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type config struct {
@@ -12,6 +14,8 @@ type config struct {
 }
 
 func loadConfig() (config, error) {
+	_ = godotenv.Load()
+
 	jwtSecret, err := getJWTSecret()
 	if err != nil {
 		return config{}, err
