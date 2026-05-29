@@ -3,11 +3,11 @@ package main
 import (
 	"log"
 
-	"contai/internal/app"
+	"contai/internal/server"
 )
 
 func main() {
-	server, err := app.NewServer()
+	server, err := server.NewServer()
 	if err != nil {
 		log.Fatal(err)
 	}
