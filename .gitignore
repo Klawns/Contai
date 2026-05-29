@@ -1,0 +1,26 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Go
+*.exe
+*.test
+*.out
+coverage.out
+bin/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/.vite/
+frontend/coverage/
