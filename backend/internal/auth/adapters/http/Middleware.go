@@ -3,6 +3,8 @@ package http
 import (
 	"net/http"
 
+	authdomain "contai/internal/auth/domain"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,4 +27,14 @@ func (handler Handler) AuthMiddleware() gin.HandlerFunc {
 		ctx.Set(authenticatedUserContextKey, authenticatedUser)
 		ctx.Next()
 	}
+}
+
+func AuthenticatedUserFromContext(ctx *gin.Context) (authdomain.AuthenticatedUser, bool) {
+	value, ok := ctx.Get(authenticatedUserContextKey)
+	if !ok {
+		return authdomain.AuthenticatedUser{}, false
+	}
+
+	authenticatedUser, ok := value.(authdomain.AuthenticatedUser)
+	return authenticatedUser, ok
 }

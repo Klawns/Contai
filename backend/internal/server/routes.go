@@ -20,4 +20,10 @@ func registerRoutes(router *gin.Engine, dependencies dependencies) {
 	router.POST("/api/auth/login", limitBody(authBodyLimitBytes), authLimiter.Middleware(), dependencies.authHandler.Login)
 	router.POST("/api/auth/logout", dependencies.authHandler.Logout)
 	router.GET("/api/auth/me", dependencies.authHandler.AuthMiddleware(), dependencies.authHandler.Me)
+
+	authenticated := router.Group("/api", dependencies.authHandler.AuthMiddleware())
+	authenticated.GET("/categories", dependencies.categoryHandler.ListCategories)
+	authenticated.POST("/categories", limitBody(authBodyLimitBytes), dependencies.categoryHandler.CreateCategory)
+	authenticated.PATCH("/categories/:categoryID", limitBody(authBodyLimitBytes), dependencies.categoryHandler.UpdateCategory)
+	authenticated.DELETE("/categories/:categoryID", dependencies.categoryHandler.DeleteCategory)
 }

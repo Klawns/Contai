@@ -101,13 +101,7 @@ func (handler Handler) Logout(ctx *gin.Context) {
 }
 
 func (handler Handler) Me(ctx *gin.Context) {
-	value, ok := ctx.Get(authenticatedUserContextKey)
-	if !ok {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	authenticatedUser, ok := value.(authdomain.AuthenticatedUser)
+	authenticatedUser, ok := AuthenticatedUserFromContext(ctx)
 	if !ok {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
