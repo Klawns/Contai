@@ -3,14 +3,16 @@ package server
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type config struct {
-	port        string
-	databaseDSN string
-	jwtSecret   string
+	port         string
+	databaseDSN  string
+	jwtSecret    string
+	jwtAccessTTL time.Duration
 }
 
 func loadConfig() (config, error) {
@@ -22,9 +24,10 @@ func loadConfig() (config, error) {
 	}
 
 	return config{
-		port:        getEnv("PORT", "8080"),
-		databaseDSN: getDatabaseDSN(),
-		jwtSecret:   jwtSecret,
+		port:         getEnv("PORT", "8080"),
+		databaseDSN:  getDatabaseDSN(),
+		jwtSecret:    jwtSecret,
+		jwtAccessTTL: getJWTAccessTTL(),
 	}, nil
 }
 
@@ -51,6 +54,20 @@ func getJWTSecret() (string, error) {
 	}
 
 	return value, nil
+}
+
+func getJWTAccessTTL() time.Duration {
+	value := os.Getenv("JWT_ACCESS_TOKEN_TTL")
+	if value == "" {
+		return 30 * time.Minute
+	}
+
+	ttl, err := time.ParseDuration(value)
+	if err != nil || ttl <= 0 {
+		return 30 * time.Minute
+	}
+
+	return ttl
 }
 
 func getDatabaseDSN() string {

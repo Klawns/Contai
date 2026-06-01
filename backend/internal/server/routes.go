@@ -2,12 +2,22 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+const authBodyLimitBytes int64 = 1 << 20
 
 func registerRoutes(router *gin.Engine, dependencies dependencies) {
 	router.GET("/health", func(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+
+	authLimiter := newRateLimiter(20, time.Minute)
+
+	router.POST("/api/users", limitBody(authBodyLimitBytes), authLimiter.Middleware(), dependencies.authHandler.CreateUser)
+	router.POST("/api/auth/login", limitBody(authBodyLimitBytes), authLimiter.Middleware(), dependencies.authHandler.Login)
+	router.POST("/api/auth/logout", dependencies.authHandler.Logout)
+	router.GET("/api/auth/me", dependencies.authHandler.AuthMiddleware(), dependencies.authHandler.Me)
 }
