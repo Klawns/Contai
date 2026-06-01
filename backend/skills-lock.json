@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "coupling-analysis": {
+      "source": "tech-leads-club/agent-skills",
+      "sourceType": "github",
+      "skillPath": "packages/skills-catalog/skills/(architecture)/coupling-analysis/SKILL.md",
+      "computedHash": "383c44144b40e8dc84907a35cc6fb3123d12d9f4712e4a9c57f78d29097a7828"
+    },
+    "golang-code-style": {
+      "source": "samber/cc-skills-golang",
+      "sourceType": "github",
+      "skillPath": "skills/golang-code-style/SKILL.md",
+      "computedHash": "3212ac2a5ed2645cdf36a3f65359f9f3988af05a0b03a5868b9cf05b900f429a"
+    },
+    "golang-pro": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "skillPath": "skills/golang-pro/SKILL.md",
+      "computedHash": "dc87ea17b2dff33b3833cf42d167876d2bd68170831e7c5062b739868b99ee2c"
+    },
+    "golang-security": {
+      "source": "samber/cc-skills-golang",
+      "sourceType": "github",
+      "skillPath": "skills/golang-security/SKILL.md",
+      "computedHash": "23ca5d165aa779a9a7b9046a9ee3bebc2cf07d7bf3ed9602d87ee144aedf9c3f"
+    }
+  }
+}
