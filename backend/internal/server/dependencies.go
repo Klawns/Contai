@@ -16,6 +16,11 @@ import (
 	categoryports "contai/internal/category/app/ports"
 	categoryservices "contai/internal/category/app/services"
 	"contai/internal/database"
+	transactionhttp "contai/internal/transactions/adapters/http"
+	transactionids "contai/internal/transactions/adapters/ids"
+	transactionpersistence "contai/internal/transactions/adapters/persistence"
+	transactionports "contai/internal/transactions/app/ports"
+	transactionservices "contai/internal/transactions/app/services"
 	"contai/internal/users/adapters/ids"
 	"contai/internal/users/adapters/password"
 	"contai/internal/users/adapters/persistence"
@@ -24,14 +29,16 @@ import (
 )
 
 type dependencies struct {
-	userRepository  userports.UserRepository
-	userIDGenerator userports.UserIDGenerator
-	userService     userports.UserService
-	authHandler     authhttp.Handler
-	categoryService categoryports.CategoryService
-	categoryHandler categoryhttp.Handler
-	accountService  accountports.AccountService
-	accountHandler  accounthttp.Handler
+	userRepository     userports.UserRepository
+	userIDGenerator    userports.UserIDGenerator
+	userService        userports.UserService
+	authHandler        authhttp.Handler
+	categoryService    categoryports.CategoryService
+	categoryHandler    categoryhttp.Handler
+	accountService     accountports.AccountService
+	accountHandler     accounthttp.Handler
+	transactionService transactionports.TransactionService
+	transactionHandler transactionhttp.Handler
 }
 
 func newDependencies(cfg config) (dependencies, error) {
@@ -41,7 +48,7 @@ func newDependencies(cfg config) (dependencies, error) {
 	}
 
 	if !isProduction() {
-		if err := db.AutoMigrate(&persistence.UserEntity{}, &categorypersistence.CategoryEntity{}, &accountpersistence.AccountEntity{}); err != nil {
+		if err := db.AutoMigrate(&persistence.UserEntity{}, &categorypersistence.CategoryEntity{}, &accountpersistence.AccountEntity{}, &transactionpersistence.TransactionEntity{}); err != nil {
 			return dependencies{}, err
 		}
 	}
@@ -49,14 +56,17 @@ func newDependencies(cfg config) (dependencies, error) {
 	userRepository := persistence.NewUserRepository(db)
 	categoryRepository := categorypersistence.NewCategoryRepository(db)
 	accountRepository := accountpersistence.NewAccountRepository(db)
+	transactionRepository := transactionpersistence.NewTransactionRepository(db)
 	unitOfWork := database.NewUnitOfWork(db)
 	userIDGenerator := ids.NewUUIDUserIDGenerator()
 	categoryIDGenerator := categoryids.NewUUIDCategoryIDGenerator()
 	accountIDGenerator := accountids.NewUUIDAccountIDGenerator()
+	transactionIDGenerator := transactionids.NewUUIDTransactionIDGenerator()
 	passwordHasher := password.NewBcryptHasher()
 	activeUserValidator := accountusers.NewActiveUserValidator(userRepository)
 	categoryService := categoryservices.NewCategoryService(categoryRepository, categoryIDGenerator)
 	accountService := accountservices.NewAccountService(accountRepository, accountIDGenerator, activeUserValidator)
+	transactionService := transactionservices.NewTransactionService(transactionRepository, accountRepository, categoryRepository, transactionIDGenerator, unitOfWork)
 	defaultCategoryCreator := categoryservices.NewDefaultCategoryCreatorAdapter(categoryService)
 	userService := userservices.NewUserService(userRepository, userIDGenerator, passwordHasher, defaultCategoryCreator, unitOfWork)
 	jwtService := authjwt.NewService(cfg.jwtSecret, cfg.jwtAccessTTL)
@@ -64,13 +74,15 @@ func newDependencies(cfg config) (dependencies, error) {
 	cookieService := authhttp.NewCookieService(isProduction())
 
 	return dependencies{
-		userRepository:  userRepository,
-		userIDGenerator: userIDGenerator,
-		userService:     userService,
-		authHandler:     authhttp.NewHandler(authService, userService, cookieService),
-		categoryService: categoryService,
-		categoryHandler: categoryhttp.NewHandler(categoryService),
-		accountService:  accountService,
-		accountHandler:  accounthttp.NewHandler(accountService),
+		userRepository:     userRepository,
+		userIDGenerator:    userIDGenerator,
+		userService:        userService,
+		authHandler:        authhttp.NewHandler(authService, userService, cookieService),
+		categoryService:    categoryService,
+		categoryHandler:    categoryhttp.NewHandler(categoryService),
+		accountService:     accountService,
+		accountHandler:     accounthttp.NewHandler(accountService),
+		transactionService: transactionService,
+		transactionHandler: transactionhttp.NewHandler(transactionService),
 	}, nil
 }

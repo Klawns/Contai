@@ -31,4 +31,10 @@ func registerRoutes(router *gin.Engine, dependencies dependencies) {
 	authenticated.GET("/accounts/total-balance", dependencies.accountHandler.GetTotalBalance)
 	authenticated.PATCH("/accounts/:accountID", limitBody(authBodyLimitBytes), dependencies.accountHandler.UpdateAccount)
 	authenticated.DELETE("/accounts/:accountID", dependencies.accountHandler.DeleteAccount)
+	authenticated.GET("/transactions", dependencies.transactionHandler.ListTransactions)
+	authenticated.POST("/transactions/income", limitBody(authBodyLimitBytes), dependencies.transactionHandler.CreateIncome)
+	authenticated.POST("/transactions/expense", limitBody(authBodyLimitBytes), dependencies.transactionHandler.CreateExpense)
+	authenticated.POST("/transactions/transfer", limitBody(authBodyLimitBytes), dependencies.transactionHandler.CreateTransfer)
+	authenticated.PATCH("/transactions/:transactionID", limitBody(authBodyLimitBytes), dependencies.transactionHandler.UpdateTransaction)
+	authenticated.DELETE("/transactions/:transactionID", dependencies.transactionHandler.DeleteTransaction)
 }
