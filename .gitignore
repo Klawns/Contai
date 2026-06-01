@@ -24,3 +24,6 @@ frontend/build/
 frontend/.next/
 frontend/.vite/
 frontend/coverage/
+
+*.md
+!README.md
