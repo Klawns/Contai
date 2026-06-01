@@ -90,3 +90,35 @@ func TestRegisterRoutesIncludesAuthenticatedTransactionRoutes(t *testing.T) {
 		}
 	}
 }
+
+func TestRegisterRoutesIncludesAuthenticatedDashboardRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	registerRoutes(router, dependencies{})
+
+	routes := router.Routes()
+	expected := map[string]string{
+		http.MethodGet + " /api/dashboard/monthly": "",
+	}
+
+	for _, route := range routes {
+		key := route.Method + " " + route.Path
+		if _, ok := expected[key]; ok {
+			delete(expected, key)
+		}
+	}
+
+	if len(expected) > 0 {
+		t.Fatalf("expected dashboard routes to be registered, missing %#v", expected)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/dashboard/monthly", nil)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected dashboard route to require authentication, got %d", recorder.Code)
+	}
+}

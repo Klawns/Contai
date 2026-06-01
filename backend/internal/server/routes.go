@@ -37,4 +37,5 @@ func registerRoutes(router *gin.Engine, dependencies dependencies) {
 	authenticated.POST("/transactions/transfer", limitBody(authBodyLimitBytes), dependencies.transactionHandler.CreateTransfer)
 	authenticated.PATCH("/transactions/:transactionID", limitBody(authBodyLimitBytes), dependencies.transactionHandler.UpdateTransaction)
 	authenticated.DELETE("/transactions/:transactionID", dependencies.transactionHandler.DeleteTransaction)
+	authenticated.GET("/dashboard/monthly", dependencies.dashboardHandler.GetMonthlyDashboard)
 }

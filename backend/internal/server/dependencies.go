@@ -15,6 +15,10 @@ import (
 	categorypersistence "contai/internal/category/adapters/persistence"
 	categoryports "contai/internal/category/app/ports"
 	categoryservices "contai/internal/category/app/services"
+	dashboardhttp "contai/internal/dashboard/adapters/http"
+	dashboardpersistence "contai/internal/dashboard/adapters/persistence"
+	dashboardports "contai/internal/dashboard/app/ports"
+	dashboardservices "contai/internal/dashboard/app/services"
 	"contai/internal/database"
 	transactionhttp "contai/internal/transactions/adapters/http"
 	transactionids "contai/internal/transactions/adapters/ids"
@@ -39,6 +43,8 @@ type dependencies struct {
 	accountHandler     accounthttp.Handler
 	transactionService transactionports.TransactionService
 	transactionHandler transactionhttp.Handler
+	dashboardService   dashboardports.DashboardService
+	dashboardHandler   dashboardhttp.Handler
 }
 
 func newDependencies(cfg config) (dependencies, error) {
@@ -57,6 +63,7 @@ func newDependencies(cfg config) (dependencies, error) {
 	categoryRepository := categorypersistence.NewCategoryRepository(db)
 	accountRepository := accountpersistence.NewAccountRepository(db)
 	transactionRepository := transactionpersistence.NewTransactionRepository(db)
+	dashboardRepository := dashboardpersistence.NewRepository(db)
 	unitOfWork := database.NewUnitOfWork(db)
 	userIDGenerator := ids.NewUUIDUserIDGenerator()
 	categoryIDGenerator := categoryids.NewUUIDCategoryIDGenerator()
@@ -67,6 +74,7 @@ func newDependencies(cfg config) (dependencies, error) {
 	categoryService := categoryservices.NewCategoryService(categoryRepository, categoryIDGenerator)
 	accountService := accountservices.NewAccountService(accountRepository, accountIDGenerator, activeUserValidator)
 	transactionService := transactionservices.NewTransactionService(transactionRepository, accountRepository, categoryRepository, transactionIDGenerator, unitOfWork)
+	dashboardService := dashboardservices.NewDashboardService(dashboardRepository)
 	defaultCategoryCreator := categoryservices.NewDefaultCategoryCreatorAdapter(categoryService)
 	userService := userservices.NewUserService(userRepository, userIDGenerator, passwordHasher, defaultCategoryCreator, unitOfWork)
 	jwtService := authjwt.NewService(cfg.jwtSecret, cfg.jwtAccessTTL)
@@ -84,5 +92,7 @@ func newDependencies(cfg config) (dependencies, error) {
 		accountHandler:     accounthttp.NewHandler(accountService),
 		transactionService: transactionService,
 		transactionHandler: transactionhttp.NewHandler(transactionService),
+		dashboardService:   dashboardService,
+		dashboardHandler:   dashboardhttp.NewHandler(dashboardService),
 	}, nil
 }
