@@ -5,9 +5,11 @@ import (
 	"testing"
 )
 
+const testUserID UserID = "2de2f56f-c0c5-48a2-a1ac-59a581f8da79"
+
 func TestNewUser(t *testing.T) {
 	t.Run("should create a valid user", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -25,6 +27,10 @@ func TestNewUser(t *testing.T) {
 			t.Errorf("expected password hash hashed-password, got %s", user.PasswordHash)
 		}
 
+		if user.ID != testUserID {
+			t.Errorf("expected id %s, got %s", testUserID, user.ID)
+		}
+
 		if user.Status != UserStatusActive {
 			t.Errorf("expected status active, got %s", user.Status)
 		}
@@ -38,8 +44,16 @@ func TestNewUser(t *testing.T) {
 		}
 	})
 
+	t.Run("should return error when id is empty", func(t *testing.T) {
+		_, err := NewUser("", "John Doe", "john@example.com", "hashed-password")
+
+		if !errors.Is(err, ErrUserIDRequired) {
+			t.Fatalf("expected ErrUserIDRequired, got %v", err)
+		}
+	})
+
 	t.Run("should return error when name is empty", func(t *testing.T) {
-		_, err := NewUser("", "john@example.com", "hashed-password")
+		_, err := NewUser(testUserID, "", "john@example.com", "hashed-password")
 
 		if !errors.Is(err, ErrUserNameRequired) {
 			t.Fatalf("expected ErrUserNameRequired, got %v", err)
@@ -47,7 +61,7 @@ func TestNewUser(t *testing.T) {
 	})
 
 	t.Run("should return error when email is empty", func(t *testing.T) {
-		_, err := NewUser("John Doe", "", "hashed-password")
+		_, err := NewUser(testUserID, "John Doe", "", "hashed-password")
 
 		if !errors.Is(err, ErrUserEmailRequired) {
 			t.Fatalf("expected ErrUserEmailRequired, got %v", err)
@@ -55,7 +69,7 @@ func TestNewUser(t *testing.T) {
 	})
 
 	t.Run("should return error when email is invalid", func(t *testing.T) {
-		_, err := NewUser("John Doe", "invalid-email", "hashed-password")
+		_, err := NewUser(testUserID, "John Doe", "invalid-email", "hashed-password")
 
 		if !errors.Is(err, ErrUserInvalidEmail) {
 			t.Fatalf("expected ErrUserInvalidEmail, got %v", err)
@@ -63,7 +77,7 @@ func TestNewUser(t *testing.T) {
 	})
 
 	t.Run("should return error when password hash is empty", func(t *testing.T) {
-		_, err := NewUser("John Doe", "john@example.com", "")
+		_, err := NewUser(testUserID, "John Doe", "john@example.com", "")
 
 		if !errors.Is(err, ErrUserPasswordHashRequired) {
 			t.Fatalf("expected ErrUserPasswordHashRequired, got %v", err)
@@ -71,9 +85,9 @@ func TestNewUser(t *testing.T) {
 	})
 }
 
-func TestUsuario_Rename(t *testing.T) {
+func TestUser_Rename(t *testing.T) {
 	t.Run("should rename user", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -90,7 +104,7 @@ func TestUsuario_Rename(t *testing.T) {
 	})
 
 	t.Run("should return error when name is empty", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -103,9 +117,9 @@ func TestUsuario_Rename(t *testing.T) {
 	})
 }
 
-func TestUsuario_ChangePasswordHash(t *testing.T) {
+func TestUser_ChangePasswordHash(t *testing.T) {
 	t.Run("should change password hash", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -122,7 +136,7 @@ func TestUsuario_ChangePasswordHash(t *testing.T) {
 	})
 
 	t.Run("should return error when password hash is empty", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -135,9 +149,9 @@ func TestUsuario_ChangePasswordHash(t *testing.T) {
 	})
 }
 
-func TestUsuario_Deactivate(t *testing.T) {
+func TestUser_Deactivate(t *testing.T) {
 	t.Run("should deactivate user", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -154,7 +168,7 @@ func TestUsuario_Deactivate(t *testing.T) {
 	})
 
 	t.Run("should return error when user is already inactive", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -172,9 +186,9 @@ func TestUsuario_Deactivate(t *testing.T) {
 	})
 }
 
-func TestUsuario_Activate(t *testing.T) {
+func TestUser_Activate(t *testing.T) {
 	t.Run("should activate inactive user", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -196,7 +210,7 @@ func TestUsuario_Activate(t *testing.T) {
 	})
 
 	t.Run("should return error when user is already active", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -209,9 +223,9 @@ func TestUsuario_Activate(t *testing.T) {
 	})
 }
 
-func TestUsuario_CanAuthenticate(t *testing.T) {
+func TestUser_CanAuthenticate(t *testing.T) {
 	t.Run("should return true when user is active", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -227,7 +241,7 @@ func TestUsuario_CanAuthenticate(t *testing.T) {
 	})
 
 	t.Run("should return false when user is inactive", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -248,9 +262,9 @@ func TestUsuario_CanAuthenticate(t *testing.T) {
 	})
 }
 
-func TestUsuario_CanCreateFinancialData(t *testing.T) {
+func TestUser_CanCreateFinancialData(t *testing.T) {
 	t.Run("should return true when user is active", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
@@ -266,7 +280,7 @@ func TestUsuario_CanCreateFinancialData(t *testing.T) {
 	})
 
 	t.Run("should return false when user is inactive", func(t *testing.T) {
-		user, err := NewUser("John Doe", "john@example.com", "hashed-password")
+		user, err := NewUser(testUserID, "John Doe", "john@example.com", "hashed-password")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}

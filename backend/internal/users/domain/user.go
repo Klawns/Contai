@@ -14,7 +14,7 @@ const (
 	UserStatusInactive UserStatus = "inactive"
 )
 
-type Usuario struct {
+type User struct {
 	ID           UserID
 	Name         string
 	Email        string
@@ -24,12 +24,13 @@ type Usuario struct {
 	UpdatedAt    time.Time
 }
 
-func NewUser(name, email, passwordHash string) (Usuario, error) {
+func NewUser(id UserID, name, email, passwordHash string) (User, error) {
 	now := time.Now()
 
-	user := Usuario{
+	user := User{
+		ID:           UserID(strings.TrimSpace(string(id))),
 		Name:         strings.TrimSpace(name),
-		Email:        strings.TrimSpace(email),
+		Email:        normalizeEmail(email),
 		PasswordHash: strings.TrimSpace(passwordHash),
 		Status:       UserStatusActive,
 		CreatedAt:    now,
@@ -37,13 +38,31 @@ func NewUser(name, email, passwordHash string) (Usuario, error) {
 	}
 
 	if err := user.validate(); err != nil {
-		return Usuario{}, err
+		return User{}, err
 	}
 
 	return user, nil
 }
 
-func (u *Usuario) Rename(name string) error {
+func RehydrateUser(id UserID, name, email, passwordHash string, status UserStatus, createdAt, updatedAt time.Time) (User, error) {
+	user := User{
+		ID:           UserID(strings.TrimSpace(string(id))),
+		Name:         strings.TrimSpace(name),
+		Email:        normalizeEmail(email),
+		PasswordHash: strings.TrimSpace(passwordHash),
+		Status:       status,
+		CreatedAt:    createdAt,
+		UpdatedAt:    updatedAt,
+	}
+
+	if err := user.validate(); err != nil {
+		return User{}, err
+	}
+
+	return user, nil
+}
+
+func (u *User) Rename(name string) error {
 	name = strings.TrimSpace(name)
 
 	if name == "" {
@@ -56,8 +75,8 @@ func (u *Usuario) Rename(name string) error {
 	return nil
 }
 
-func (u *Usuario) ChangeEmail(email string) error {
-	email = strings.TrimSpace(email)
+func (u *User) ChangeEmail(email string) error {
+	email = normalizeEmail(email)
 
 	if email == "" {
 		return ErrUserEmailRequired
@@ -73,7 +92,15 @@ func (u *Usuario) ChangeEmail(email string) error {
 	return nil
 }
 
-func (u *Usuario) ChangePasswordHash(passwordHash string) error {
+func NormalizeEmail(email string) string {
+	return normalizeEmail(email)
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func (u *User) ChangePasswordHash(passwordHash string) error {
 	passwordHash = strings.TrimSpace(passwordHash)
 
 	if passwordHash == "" {
@@ -86,7 +113,7 @@ func (u *Usuario) ChangePasswordHash(passwordHash string) error {
 	return nil
 }
 
-func (u *Usuario) Activate() error {
+func (u *User) Activate() error {
 	if u.Status == UserStatusActive {
 		return ErrUserAlreadyActive
 	}
@@ -95,7 +122,7 @@ func (u *Usuario) Activate() error {
 	return nil
 }
 
-func (u *Usuario) Deactivate() error {
+func (u *User) Deactivate() error {
 	if u.Status == UserStatusInactive {
 		return ErrUserAlreadyInactive
 	}
@@ -104,21 +131,25 @@ func (u *Usuario) Deactivate() error {
 	return nil
 }
 
-func (u Usuario) CanAuthenticate() (bool, error) {
+func (u User) CanAuthenticate() (bool, error) {
 	if u.Status == UserStatusInactive {
 		return false, ErrUserInactive
 	}
 	return true, nil
 }
 
-func (u Usuario) CanCreateFinancialData() (bool, error) {
+func (u User) CanCreateFinancialData() (bool, error) {
 	if u.Status == UserStatusInactive {
 		return false, ErrUserInactive
 	}
 	return true, nil
 }
 
-func (u Usuario) validate() error {
+func (u User) validate() error {
+	if strings.TrimSpace(string(u.ID)) == "" {
+		return ErrUserIDRequired
+	}
+
 	if strings.TrimSpace(u.Name) == "" {
 		return ErrUserNameRequired
 	}
@@ -133,6 +164,10 @@ func (u Usuario) validate() error {
 
 	if strings.TrimSpace(u.PasswordHash) == "" {
 		return ErrUserPasswordHashRequired
+	}
+
+	if u.Status != UserStatusActive && u.Status != UserStatusInactive {
+		return ErrUserInvalidStatus
 	}
 
 	return nil
