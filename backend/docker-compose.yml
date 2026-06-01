@@ -1,0 +1,25 @@
+name: contai
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: contai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-contai}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-contai}
+      POSTGRES_DB: ${DB_NAME:-contai}
+      TZ: ${DB_TIMEZONE:-America/Sao_Paulo}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    name: contai_postgres_data
