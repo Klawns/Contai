@@ -20,7 +20,7 @@ type userResponse struct {
 	Name      string `json:"name"`
 	Email     string `json:"email"`
 	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type authenticatedUserResponse struct {
