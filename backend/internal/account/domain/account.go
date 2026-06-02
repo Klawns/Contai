@@ -31,16 +31,17 @@ const (
 )
 
 type Account struct {
-	ID             AccountID
-	UserID         userdomain.UserID
-	Name           string
-	Type           AccountType
-	InitialBalance financedomain.Money
-	CurrentBalance financedomain.Money
-	BankIconID     string
-	Status         AccountStatus
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                      AccountID
+	UserID                  userdomain.UserID
+	Name                    string
+	Type                    AccountType
+	InitialBalance          financedomain.Money
+	CurrentBalance          financedomain.Money
+	BankIconID              string
+	IncludeInDashboardTotal bool
+	Status                  AccountStatus
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 var bankIconIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -48,16 +49,17 @@ var bankIconIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 func NewAccount(id AccountID, userID userdomain.UserID, name string, accountType AccountType, initialBalance financedomain.Money, bankIconID string) (Account, error) {
 	now := time.Now()
 	account := Account{
-		ID:             AccountID(strings.TrimSpace(string(id))),
-		UserID:         userdomain.UserID(strings.TrimSpace(string(userID))),
-		Name:           strings.TrimSpace(name),
-		Type:           accountType,
-		InitialBalance: initialBalance,
-		CurrentBalance: initialBalance,
-		BankIconID:     strings.TrimSpace(bankIconID),
-		Status:         AccountStatusActive,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ID:                      AccountID(strings.TrimSpace(string(id))),
+		UserID:                  userdomain.UserID(strings.TrimSpace(string(userID))),
+		Name:                    strings.TrimSpace(name),
+		Type:                    accountType,
+		InitialBalance:          initialBalance,
+		CurrentBalance:          initialBalance,
+		BankIconID:              strings.TrimSpace(bankIconID),
+		IncludeInDashboardTotal: true,
+		Status:                  AccountStatusActive,
+		CreatedAt:               now,
+		UpdatedAt:               now,
 	}
 
 	if err := account.validate(); err != nil {
@@ -67,18 +69,19 @@ func NewAccount(id AccountID, userID userdomain.UserID, name string, accountType
 	return account, nil
 }
 
-func RehydrateAccount(id AccountID, userID userdomain.UserID, name string, accountType AccountType, initialBalance, currentBalance financedomain.Money, bankIconID string, status AccountStatus, createdAt, updatedAt time.Time) (Account, error) {
+func RehydrateAccount(id AccountID, userID userdomain.UserID, name string, accountType AccountType, initialBalance, currentBalance financedomain.Money, bankIconID string, includeInDashboardTotal bool, status AccountStatus, createdAt, updatedAt time.Time) (Account, error) {
 	account := Account{
-		ID:             AccountID(strings.TrimSpace(string(id))),
-		UserID:         userdomain.UserID(strings.TrimSpace(string(userID))),
-		Name:           strings.TrimSpace(name),
-		Type:           accountType,
-		InitialBalance: initialBalance,
-		CurrentBalance: currentBalance,
-		BankIconID:     strings.TrimSpace(bankIconID),
-		Status:         status,
-		CreatedAt:      createdAt,
-		UpdatedAt:      updatedAt,
+		ID:                      AccountID(strings.TrimSpace(string(id))),
+		UserID:                  userdomain.UserID(strings.TrimSpace(string(userID))),
+		Name:                    strings.TrimSpace(name),
+		Type:                    accountType,
+		InitialBalance:          initialBalance,
+		CurrentBalance:          currentBalance,
+		BankIconID:              strings.TrimSpace(bankIconID),
+		IncludeInDashboardTotal: includeInDashboardTotal,
+		Status:                  status,
+		CreatedAt:               createdAt,
+		UpdatedAt:               updatedAt,
 	}
 
 	if err := account.validate(); err != nil {
@@ -88,10 +91,11 @@ func RehydrateAccount(id AccountID, userID userdomain.UserID, name string, accou
 	return account, nil
 }
 
-func (account *Account) Edit(name string, accountType AccountType, bankIconID string) error {
+func (account *Account) Edit(name string, accountType AccountType, bankIconID string, includeInDashboardTotal bool) error {
 	account.Name = strings.TrimSpace(name)
 	account.Type = accountType
 	account.BankIconID = strings.TrimSpace(bankIconID)
+	account.IncludeInDashboardTotal = includeInDashboardTotal
 	account.UpdatedAt = time.Now()
 
 	return account.validate()

@@ -23,6 +23,8 @@ type MonthlyDashboardDTO struct {
 	TotalBalance       financedomain.Money
 	MonthlyIncome      financedomain.Money
 	MonthlyExpense     financedomain.Money
+	MonthlyTransferIn  financedomain.Money
+	MonthlyTransferOut financedomain.Money
 	MonthlyNetBalance  financedomain.Money
 	AccountBalances    []AccountBalanceDTO
 	ExpensesByCategory []CategoryExpenseDTO
@@ -30,11 +32,12 @@ type MonthlyDashboardDTO struct {
 }
 
 type AccountBalanceDTO struct {
-	AccountID  accountdomain.AccountID
-	Name       string
-	Type       accountdomain.AccountType
-	Balance    financedomain.Money
-	BankIconID string
+	AccountID               accountdomain.AccountID
+	Name                    string
+	Type                    accountdomain.AccountType
+	Balance                 financedomain.Money
+	BankIconID              string
+	IncludeInDashboardTotal bool
 }
 
 type CategoryExpenseDTO struct {

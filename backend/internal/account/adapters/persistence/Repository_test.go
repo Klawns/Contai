@@ -39,10 +39,18 @@ func TestAccountRepositoryIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no domain error, got %v", err)
 	}
+	excludedAccount, err := domain.NewAccount(domain.AccountID(uuid.NewString()), userID, fmt.Sprintf("Excluded %d", time.Now().UnixNano()), domain.AccountTypeCash, financedomain.NewMoney(3300), "cash")
+	if err != nil {
+		t.Fatalf("expected no excluded account domain error, got %v", err)
+	}
+	excludedAccount.IncludeInDashboardTotal = false
 
 	created, err := repository.CreateAccount(ctx, &account)
 	if err != nil {
 		t.Fatalf("expected create to succeed, got %v", err)
+	}
+	if _, err := repository.CreateAccount(ctx, &excludedAccount); err != nil {
+		t.Fatalf("expected excluded account create to succeed, got %v", err)
 	}
 
 	found, err := repository.FindAccountByID(ctx, created.ID, userID)
@@ -68,6 +76,9 @@ func TestAccountRepositoryIntegration(t *testing.T) {
 	}
 	if len(accounts) == 0 {
 		t.Fatal("expected listed account")
+	}
+	if len(accounts) < 2 {
+		t.Fatalf("expected excluded active account to stay listed, got %#v", accounts)
 	}
 
 	total, err := repository.SumActiveAccountBalances(ctx, userID)

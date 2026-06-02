@@ -64,12 +64,14 @@ func TestHandlerSerializesCamelCaseMoneyInCents(t *testing.T) {
 	occurredAt := time.Date(2026, 1, 5, 12, 0, 0, 0, time.UTC)
 	createdAt := time.Date(2026, 1, 5, 12, 1, 0, 0, time.UTC)
 	service := &fakeDashboardService{dashboard: ports.MonthlyDashboardDTO{
-		UserID:            "authenticated-user",
-		Period:            mustPeriod(t),
-		TotalBalance:      financedomain.NewMoney(10000),
-		MonthlyIncome:     financedomain.NewMoney(7000),
-		MonthlyExpense:    financedomain.NewMoney(2500),
-		MonthlyNetBalance: financedomain.NewMoney(4500),
+		UserID:             "authenticated-user",
+		Period:             mustPeriod(t),
+		TotalBalance:       financedomain.NewMoney(10000),
+		MonthlyIncome:      financedomain.NewMoney(7000),
+		MonthlyExpense:     financedomain.NewMoney(2500),
+		MonthlyTransferIn:  financedomain.NewMoney(1200),
+		MonthlyTransferOut: financedomain.NewMoney(1200),
+		MonthlyNetBalance:  financedomain.NewMoney(4500),
 		AccountBalances: []ports.AccountBalanceDTO{
 			{AccountID: accountID, Name: "Checking", Type: accountdomain.AccountTypeChecking, Balance: financedomain.NewMoney(10000), BankIconID: "bank_1"},
 		},
@@ -109,6 +111,8 @@ func TestHandlerSerializesCamelCaseMoneyInCents(t *testing.T) {
 		`"totalBalance":10000`,
 		`"monthlyIncome":7000`,
 		`"monthlyExpense":2500`,
+		`"monthlyTransferIn":1200`,
+		`"monthlyTransferOut":1200`,
 		`"monthlyNetBalance":4500`,
 		`"accountBalances":[{"accountId":"account-id","name":"Checking","type":"checking","balance":10000,"bankIconId":"bank_1"}]`,
 		`"expensesByCategory":[{"categoryId":"category-id","name":"Groceries","color":"#2563EB","icon":"shopping-cart","total":2500}]`,

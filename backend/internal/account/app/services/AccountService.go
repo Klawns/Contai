@@ -34,6 +34,9 @@ func (service AccountService) CreateAccount(ctx context.Context, input ports.Cre
 	if err != nil {
 		return ports.AccountDTO{}, err
 	}
+	if input.IncludeInDashboardTotal != nil {
+		account.IncludeInDashboardTotal = *input.IncludeInDashboardTotal
+	}
 
 	created, err := service.repository.CreateAccount(ctx, &account)
 	if err != nil {
@@ -73,7 +76,12 @@ func (service AccountService) UpdateAccount(ctx context.Context, input ports.Upd
 		return ports.AccountDTO{}, domain.ErrAccountNotFound
 	}
 
-	if err := account.Edit(input.Name, input.Type, input.BankIconID); err != nil {
+	includeInDashboardTotal := account.IncludeInDashboardTotal
+	if input.IncludeInDashboardTotal != nil {
+		includeInDashboardTotal = *input.IncludeInDashboardTotal
+	}
+
+	if err := account.Edit(input.Name, input.Type, input.BankIconID, includeInDashboardTotal); err != nil {
 		return ports.AccountDTO{}, err
 	}
 
@@ -120,16 +128,17 @@ func (service AccountService) GetTotalBalance(ctx context.Context, input ports.G
 
 func toAccountDTO(account domain.Account) ports.AccountDTO {
 	return ports.AccountDTO{
-		ID:             account.ID,
-		UserID:         account.UserID,
-		Name:           account.Name,
-		Type:           account.Type,
-		InitialBalance: account.InitialBalance,
-		CurrentBalance: account.CurrentBalance,
-		BankIconID:     account.BankIconID,
-		Status:         account.Status,
-		CreatedAt:      account.CreatedAt,
-		UpdatedAt:      account.UpdatedAt,
+		ID:                      account.ID,
+		UserID:                  account.UserID,
+		Name:                    account.Name,
+		Type:                    account.Type,
+		InitialBalance:          account.InitialBalance,
+		CurrentBalance:          account.CurrentBalance,
+		BankIconID:              account.BankIconID,
+		IncludeInDashboardTotal: account.IncludeInDashboardTotal,
+		Status:                  account.Status,
+		CreatedAt:               account.CreatedAt,
+		UpdatedAt:               account.UpdatedAt,
 	}
 }
 

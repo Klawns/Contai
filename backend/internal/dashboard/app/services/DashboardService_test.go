@@ -6,9 +6,11 @@ import (
 	"testing"
 	"time"
 
+	accountdomain "contai/internal/account/domain"
 	"contai/internal/dashboard/app/ports"
 	"contai/internal/dashboard/domain"
 	financedomain "contai/internal/finance/domain"
+	transactiondomain "contai/internal/transactions/domain"
 	userdomain "contai/internal/users/domain"
 )
 
@@ -43,11 +45,14 @@ func TestDashboardServiceCalculatesBalances(t *testing.T) {
 	period := validPeriod(t)
 	repository := &fakeDashboardRepository{
 		accountBalances: []ports.AccountBalanceDTO{
-			{AccountID: "checking", Balance: financedomain.NewMoney(1200)},
-			{AccountID: "cash", Balance: financedomain.NewMoney(-200)},
+			{AccountID: "checking", Balance: financedomain.NewMoney(1200), IncludeInDashboardTotal: true},
+			{AccountID: "cash", Balance: financedomain.NewMoney(-200), IncludeInDashboardTotal: false},
 		},
-		income:  financedomain.NewMoney(5000),
-		expense: financedomain.NewMoney(1250),
+		transactions: []transactiondomain.Transaction{
+			validIncomeTransaction(t, "income-id", 5000),
+			validExpenseTransaction(t, "expense-id", 1250),
+			validTransferTransaction(t, "transfer-id", 900),
+		},
 	}
 	service := NewDashboardService(repository)
 
@@ -59,11 +64,14 @@ func TestDashboardServiceCalculatesBalances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if dashboard.TotalBalance.Cents() != 1000 {
-		t.Fatalf("expected total balance 1000, got %d", dashboard.TotalBalance.Cents())
+	if dashboard.TotalBalance.Cents() != 1200 {
+		t.Fatalf("expected total balance 1200, got %d", dashboard.TotalBalance.Cents())
 	}
 	if dashboard.MonthlyNetBalance.Cents() != 3750 {
 		t.Fatalf("expected monthly net balance 3750, got %d", dashboard.MonthlyNetBalance.Cents())
+	}
+	if dashboard.MonthlyTransferIn.Cents() != 900 || dashboard.MonthlyTransferOut.Cents() != 900 {
+		t.Fatalf("expected transfer totals 900/900, got %d/%d", dashboard.MonthlyTransferIn.Cents(), dashboard.MonthlyTransferOut.Cents())
 	}
 }
 
@@ -124,6 +132,7 @@ type fakeDashboardRepository struct {
 	expense            financedomain.Money
 	expensesByCategory []ports.CategoryExpenseDTO
 	recentTransactions []ports.TransactionDTO
+	transactions       []transactiondomain.Transaction
 	recentLimit        int
 }
 
@@ -139,6 +148,10 @@ func (repository *fakeDashboardRepository) SumExpense(ctx context.Context, userI
 	return repository.expense, nil
 }
 
+func (repository *fakeDashboardRepository) FindTransactionsByPeriod(ctx context.Context, userID userdomain.UserID, period domain.Period) ([]transactiondomain.Transaction, error) {
+	return repository.transactions, nil
+}
+
 func (repository *fakeDashboardRepository) FindExpensesByCategory(ctx context.Context, userID userdomain.UserID, period domain.Period) ([]ports.CategoryExpenseDTO, error) {
 	return repository.expensesByCategory, nil
 }
@@ -146,4 +159,33 @@ func (repository *fakeDashboardRepository) FindExpensesByCategory(ctx context.Co
 func (repository *fakeDashboardRepository) FindRecentTransactions(ctx context.Context, userID userdomain.UserID, limit int) ([]ports.TransactionDTO, error) {
 	repository.recentLimit = limit
 	return repository.recentTransactions, nil
+}
+
+func validIncomeTransaction(t *testing.T, id transactiondomain.TransactionID, cents int64) transactiondomain.Transaction {
+	t.Helper()
+	transaction, err := transactiondomain.NewIncome(id, "user-id", "Income", financedomain.NewMoney(cents), time.Now(), "account-id", "category-id", "")
+	if err != nil {
+		t.Fatalf("expected valid income transaction, got %v", err)
+	}
+	return transaction
+}
+
+func validExpenseTransaction(t *testing.T, id transactiondomain.TransactionID, cents int64) transactiondomain.Transaction {
+	t.Helper()
+	transaction, err := transactiondomain.NewExpense(id, "user-id", "Expense", financedomain.NewMoney(cents), time.Now(), "account-id", "category-id", "")
+	if err != nil {
+		t.Fatalf("expected valid expense transaction, got %v", err)
+	}
+	return transaction
+}
+
+func validTransferTransaction(t *testing.T, id transactiondomain.TransactionID, cents int64) transactiondomain.Transaction {
+	t.Helper()
+	source := accountdomain.AccountID("source-account-id")
+	destination := accountdomain.AccountID("destination-account-id")
+	transaction, err := transactiondomain.NewTransfer(id, "user-id", "Transfer", financedomain.NewMoney(cents), time.Now(), source, destination, "")
+	if err != nil {
+		t.Fatalf("expected valid transfer transaction, got %v", err)
+	}
+	return transaction
 }

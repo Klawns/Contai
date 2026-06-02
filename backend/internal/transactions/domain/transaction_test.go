@@ -70,3 +70,45 @@ func TestRehydrateTransactionValidatesShape(t *testing.T) {
 		t.Fatalf("expected transfer source account error, got %v", err)
 	}
 }
+
+func TestCalculateTransactionTotals(t *testing.T) {
+	income, err := NewIncome("income-id", "user-id", "Salary", financedomain.NewMoney(10000), time.Now(), "account-id", "category-id", "")
+	if err != nil {
+		t.Fatalf("expected valid income, got %v", err)
+	}
+	expense, err := NewExpense("expense-id", "user-id", "Market", financedomain.NewMoney(2500), time.Now(), "account-id", "category-id", "")
+	if err != nil {
+		t.Fatalf("expected valid expense, got %v", err)
+	}
+	transfer, err := NewTransfer("transfer-id", "user-id", "Move money", financedomain.NewMoney(1500), time.Now(), "source-account", "destination-account", "")
+	if err != nil {
+		t.Fatalf("expected valid transfer, got %v", err)
+	}
+	removed, err := NewExpense("removed-id", "user-id", "Removed", financedomain.NewMoney(9999), time.Now(), "account-id", "category-id", "")
+	if err != nil {
+		t.Fatalf("expected valid removed expense, got %v", err)
+	}
+	if err := removed.MarkRemoved(); err != nil {
+		t.Fatalf("expected remove to succeed, got %v", err)
+	}
+
+	totals := CalculateTransactionTotals([]Transaction{income, expense, transfer, removed})
+
+	if totals.IncomeTotal.Cents() != 10000 {
+		t.Fatalf("expected income total 10000, got %d", totals.IncomeTotal.Cents())
+	}
+	if totals.ExpenseTotal.Cents() != 2500 {
+		t.Fatalf("expected expense total 2500, got %d", totals.ExpenseTotal.Cents())
+	}
+	if totals.TransferInTotal.Cents() != 1500 || totals.TransferOutTotal.Cents() != 1500 {
+		t.Fatalf("expected transfer totals 1500/1500, got %d/%d", totals.TransferInTotal.Cents(), totals.TransferOutTotal.Cents())
+	}
+}
+
+func TestCalculateTransactionTotalsEmptyList(t *testing.T) {
+	totals := CalculateTransactionTotals(nil)
+
+	if totals.IncomeTotal.Cents() != 0 || totals.ExpenseTotal.Cents() != 0 || totals.TransferInTotal.Cents() != 0 || totals.TransferOutTotal.Cents() != 0 {
+		t.Fatalf("expected empty totals, got %#v", totals)
+	}
+}

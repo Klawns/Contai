@@ -37,6 +37,26 @@ func TestAccountService_CreateAccountPersistsAccount(t *testing.T) {
 	if repository.created == nil || repository.created.UserID != "user-id" {
 		t.Fatalf("expected persisted account, got %#v", repository.created)
 	}
+	if !account.IncludeInDashboardTotal {
+		t.Fatal("expected created account to include in dashboard total by default")
+	}
+}
+
+func TestAccountService_CreateAccountPersistsDashboardTotalFalse(t *testing.T) {
+	includeInDashboardTotal := false
+	repository := &fakeAccountRepository{}
+	service := NewAccountService(repository, fakeAccountIDGenerator{}, fakeUserValidator{})
+	input := createAccountInput()
+	input.IncludeInDashboardTotal = &includeInDashboardTotal
+
+	account, err := service.CreateAccount(context.Background(), input)
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if account.IncludeInDashboardTotal {
+		t.Fatal("expected created account to preserve false dashboard total flag")
+	}
 }
 
 func TestAccountService_UpdateAccountPreservesBalances(t *testing.T) {
@@ -57,6 +77,32 @@ func TestAccountService_UpdateAccountPreservesBalances(t *testing.T) {
 	}
 	if updated.Name != "Savings" || updated.InitialBalance.Cents() != 1000 || updated.CurrentBalance.Cents() != 1000 {
 		t.Fatalf("expected updated account with preserved balances, got %#v", updated)
+	}
+	if !updated.IncludeInDashboardTotal {
+		t.Fatal("expected omitted dashboard total flag to preserve current value")
+	}
+}
+
+func TestAccountService_UpdateAccountChangesDashboardTotalFlag(t *testing.T) {
+	existing := validServiceAccount(t)
+	includeInDashboardTotal := false
+	repository := &fakeAccountRepository{found: &existing}
+	service := NewAccountService(repository, fakeAccountIDGenerator{}, fakeUserValidator{})
+
+	updated, err := service.UpdateAccount(context.Background(), ports.UpdateAccountInput{
+		UserID:                  "user-id",
+		AccountID:               "account-id",
+		Name:                    "Savings",
+		Type:                    domain.AccountTypeSavings,
+		BankIconID:              "bank-2",
+		IncludeInDashboardTotal: &includeInDashboardTotal,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated.IncludeInDashboardTotal {
+		t.Fatal("expected dashboard total flag to be updated to false")
 	}
 }
 

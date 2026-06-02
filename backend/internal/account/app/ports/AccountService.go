@@ -10,32 +10,35 @@ import (
 )
 
 type AccountDTO struct {
-	ID             domain.AccountID
-	UserID         userdomain.UserID
-	Name           string
-	Type           domain.AccountType
-	InitialBalance financedomain.Money
-	CurrentBalance financedomain.Money
-	BankIconID     string
-	Status         domain.AccountStatus
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                      domain.AccountID
+	UserID                  userdomain.UserID
+	Name                    string
+	Type                    domain.AccountType
+	InitialBalance          financedomain.Money
+	CurrentBalance          financedomain.Money
+	BankIconID              string
+	IncludeInDashboardTotal bool
+	Status                  domain.AccountStatus
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 type CreateAccountInput struct {
-	UserID         userdomain.UserID
-	Name           string
-	Type           domain.AccountType
-	InitialBalance financedomain.Money
-	BankIconID     string
+	UserID                  userdomain.UserID
+	Name                    string
+	Type                    domain.AccountType
+	InitialBalance          financedomain.Money
+	BankIconID              string
+	IncludeInDashboardTotal *bool
 }
 
 type UpdateAccountInput struct {
-	UserID     userdomain.UserID
-	AccountID  domain.AccountID
-	Name       string
-	Type       domain.AccountType
-	BankIconID string
+	UserID                  userdomain.UserID
+	AccountID               domain.AccountID
+	Name                    string
+	Type                    domain.AccountType
+	BankIconID              string
+	IncludeInDashboardTotal *bool
 }
 
 type ListAccountsInput struct {

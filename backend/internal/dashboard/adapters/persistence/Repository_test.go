@@ -46,8 +46,8 @@ func TestDashboardRepositoryIntegration(t *testing.T) {
 	expenseCategoryID := uuid.NewString()
 	incomeCategoryID := uuid.NewString()
 	if err := db.Create([]dashboardAccountEntity{
-		{ID: activeAccountID, UserID: string(userID), Name: "Checking", Type: string(accountdomain.AccountTypeChecking), InitialBalance: 0, CurrentBalance: 8500, BankIconID: "bank", Status: string(accountdomain.AccountStatusActive), CreatedAt: time.Now(), UpdatedAt: time.Now()},
-		{ID: inactiveAccountID, UserID: string(userID), Name: "Closed", Type: string(accountdomain.AccountTypeCash), InitialBalance: 0, CurrentBalance: 9900, BankIconID: "cash", Status: string(accountdomain.AccountStatusInactive), CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: activeAccountID, UserID: string(userID), Name: "Checking", Type: string(accountdomain.AccountTypeChecking), InitialBalance: 0, CurrentBalance: 8500, BankIconID: "bank", IncludeInDashboardTotal: true, Status: string(accountdomain.AccountStatusActive), CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: inactiveAccountID, UserID: string(userID), Name: "Closed", Type: string(accountdomain.AccountTypeCash), InitialBalance: 0, CurrentBalance: 9900, BankIconID: "cash", IncludeInDashboardTotal: true, Status: string(accountdomain.AccountStatusInactive), CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}).Error; err != nil {
 		t.Fatalf("expected accounts to be created, got %v", err)
 	}
@@ -74,7 +74,7 @@ func TestDashboardRepositoryIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected active balances, got %v", err)
 	}
-	if len(accounts) != 1 || accounts[0].Balance.Cents() != 8500 || accounts[0].BankIconID != "bank" {
+	if len(accounts) != 1 || accounts[0].Balance.Cents() != 8500 || accounts[0].BankIconID != "bank" || !accounts[0].IncludeInDashboardTotal {
 		t.Fatalf("expected one active balance 8500, got %#v", accounts)
 	}
 
@@ -119,16 +119,17 @@ func TestDashboardRepositoryIntegration(t *testing.T) {
 }
 
 type dashboardAccountEntity struct {
-	ID             string `gorm:"type:uuid;primaryKey"`
-	UserID         string `gorm:"type:uuid;not null;index"`
-	Name           string `gorm:"not null"`
-	Type           string `gorm:"not null"`
-	InitialBalance int64  `gorm:"not null"`
-	CurrentBalance int64  `gorm:"not null"`
-	BankIconID     string `gorm:"not null"`
-	Status         string `gorm:"not null;index"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                      string `gorm:"type:uuid;primaryKey"`
+	UserID                  string `gorm:"type:uuid;not null;index"`
+	Name                    string `gorm:"not null"`
+	Type                    string `gorm:"not null"`
+	InitialBalance          int64  `gorm:"not null"`
+	CurrentBalance          int64  `gorm:"not null"`
+	BankIconID              string `gorm:"not null"`
+	IncludeInDashboardTotal bool   `gorm:"not null;default:true"`
+	Status                  string `gorm:"not null;index"`
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 }
 
 func (dashboardAccountEntity) TableName() string {

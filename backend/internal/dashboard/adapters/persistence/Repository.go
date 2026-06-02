@@ -29,7 +29,7 @@ func (repository Repository) FindActiveAccountBalances(ctx context.Context, user
 	var rows []accountBalanceRow
 	if err := repository.db.WithContext(ctx).
 		Table("accounts").
-		Select("id, name, type, current_balance, bank_icon_id").
+		Select("id, name, type, current_balance, bank_icon_id, include_in_dashboard_total").
 		Where("user_id = ? AND status = ?", string(userID), string(accountdomain.AccountStatusActive)).
 		Order("name ASC").
 		Scan(&rows).Error; err != nil {
@@ -39,11 +39,12 @@ func (repository Repository) FindActiveAccountBalances(ctx context.Context, user
 	balances := make([]ports.AccountBalanceDTO, 0, len(rows))
 	for _, row := range rows {
 		balances = append(balances, ports.AccountBalanceDTO{
-			AccountID:  accountdomain.AccountID(row.ID),
-			Name:       row.Name,
-			Type:       accountdomain.AccountType(row.Type),
-			Balance:    financedomain.NewMoney(row.CurrentBalance),
-			BankIconID: row.BankIconID,
+			AccountID:               accountdomain.AccountID(row.ID),
+			Name:                    row.Name,
+			Type:                    accountdomain.AccountType(row.Type),
+			Balance:                 financedomain.NewMoney(row.CurrentBalance),
+			BankIconID:              row.BankIconID,
+			IncludeInDashboardTotal: row.IncludeInDashboardTotal,
 		})
 	}
 	return balances, nil
@@ -55,6 +56,30 @@ func (repository Repository) SumIncome(ctx context.Context, userID userdomain.Us
 
 func (repository Repository) SumExpense(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period) (financedomain.Money, error) {
 	return repository.sumByType(ctx, userID, period, transactiondomain.TransactionTypeExpense)
+}
+
+func (repository Repository) FindTransactionsByPeriod(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period) ([]transactiondomain.Transaction, error) {
+	var rows []recentTransactionRow
+	if err := repository.db.WithContext(ctx).
+		Table("transactions").
+		Select("id, user_id, type, description, amount, occurred_at, account_id, source_account_id, destination_account_id, category_id, status, note, removed_at, created_at, updated_at").
+		Where("user_id = ?", string(userID)).
+		Where("status = ? AND removed_at IS NULL", string(transactiondomain.TransactionStatusActive)).
+		Where("occurred_at >= ? AND occurred_at <= ?", period.StartAt, period.EndAt).
+		Order("occurred_at DESC, created_at DESC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	transactions := make([]transactiondomain.Transaction, 0, len(rows))
+	for _, row := range rows {
+		transaction, err := toDomainTransaction(row)
+		if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, transaction)
+	}
+	return transactions, nil
 }
 
 func (repository Repository) FindExpensesByCategory(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period) ([]ports.CategoryExpenseDTO, error) {
@@ -140,11 +165,12 @@ func (repository Repository) sumByType(ctx context.Context, userID userdomain.Us
 }
 
 type accountBalanceRow struct {
-	ID             string
-	Name           string
-	Type           string
-	CurrentBalance int64
-	BankIconID     string
+	ID                      string
+	Name                    string
+	Type                    string
+	CurrentBalance          int64
+	BankIconID              string
+	IncludeInDashboardTotal bool
 }
 
 type expenseByCategoryRow struct {
@@ -187,4 +213,24 @@ func toCategoryID(value *string) *categorydomain.CategoryID {
 	}
 	converted := categorydomain.CategoryID(*value)
 	return &converted
+}
+
+func toDomainTransaction(row recentTransactionRow) (transactiondomain.Transaction, error) {
+	return transactiondomain.RehydrateTransaction(
+		transactiondomain.TransactionID(row.ID),
+		userdomain.UserID(row.UserID),
+		transactiondomain.TransactionType(row.Type),
+		row.Description,
+		financedomain.NewMoney(row.Amount),
+		row.OccurredAt,
+		toAccountID(row.AccountID),
+		toAccountID(row.SourceAccountID),
+		toAccountID(row.DestinationAccountID),
+		toCategoryID(row.CategoryID),
+		transactiondomain.TransactionStatus(row.Status),
+		row.Note,
+		row.RemovedAt,
+		row.CreatedAt,
+		row.UpdatedAt,
+	)
 }

@@ -98,7 +98,7 @@ func (repository AccountRepository) SumActiveAccountBalances(ctx context.Context
 	var total int64
 	if err := repository.db.WithContext(ctx).
 		Model(&AccountEntity{}).
-		Where("user_id = ? AND status = ?", string(userID), string(domain.AccountStatusActive)).
+		Where("user_id = ? AND status = ? AND include_in_dashboard_total = ?", string(userID), string(domain.AccountStatusActive), true).
 		Select("COALESCE(SUM(current_balance), 0)").
 		Scan(&total).Error; err != nil {
 		return 0, err

@@ -14,6 +14,8 @@ type monthlyDashboardResponse struct {
 	TotalBalance       int64                       `json:"totalBalance"`
 	MonthlyIncome      int64                       `json:"monthlyIncome"`
 	MonthlyExpense     int64                       `json:"monthlyExpense"`
+	MonthlyTransferIn  int64                       `json:"monthlyTransferIn"`
+	MonthlyTransferOut int64                       `json:"monthlyTransferOut"`
 	MonthlyNetBalance  int64                       `json:"monthlyNetBalance"`
 	AccountBalances    []accountBalanceResponse    `json:"accountBalances"`
 	ExpensesByCategory []expenseByCategoryResponse `json:"expensesByCategory"`
@@ -69,6 +71,8 @@ func toMonthlyDashboardResponse(dashboard ports.MonthlyDashboardDTO) monthlyDash
 		TotalBalance:       dashboard.TotalBalance.Cents(),
 		MonthlyIncome:      dashboard.MonthlyIncome.Cents(),
 		MonthlyExpense:     dashboard.MonthlyExpense.Cents(),
+		MonthlyTransferIn:  dashboard.MonthlyTransferIn.Cents(),
+		MonthlyTransferOut: dashboard.MonthlyTransferOut.Cents(),
 		MonthlyNetBalance:  dashboard.MonthlyNetBalance.Cents(),
 		AccountBalances:    toAccountBalanceResponses(dashboard.AccountBalances),
 		ExpensesByCategory: toExpenseByCategoryResponses(dashboard.ExpensesByCategory),

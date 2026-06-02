@@ -12,6 +12,7 @@ func TestAccountMapperRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected valid account, got %v", err)
 	}
+	account.IncludeInDashboardTotal = false
 
 	entity := toAccountEntity(account)
 	mapped, err := toDomainAccount(entity)
@@ -19,7 +20,7 @@ func TestAccountMapperRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected mapper to succeed, got %v", err)
 	}
-	if mapped.ID != account.ID || mapped.InitialBalance.Cents() != -500 || mapped.CurrentBalance.Cents() != -500 {
+	if mapped.ID != account.ID || mapped.InitialBalance.Cents() != -500 || mapped.CurrentBalance.Cents() != -500 || mapped.IncludeInDashboardTotal {
 		t.Fatalf("expected round trip account, got %#v", mapped)
 	}
 }

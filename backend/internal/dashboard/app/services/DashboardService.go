@@ -6,6 +6,7 @@ import (
 	"contai/internal/dashboard/app/ports"
 	"contai/internal/dashboard/domain"
 	financedomain "contai/internal/finance/domain"
+	transactiondomain "contai/internal/transactions/domain"
 )
 
 const recentTransactionsLimit = 5
@@ -34,17 +35,16 @@ func (service DashboardService) GetMonthlyDashboard(ctx context.Context, input p
 	}
 	totalBalance := financedomain.NewMoney(0)
 	for _, accountBalance := range accountBalances {
-		totalBalance = totalBalance.Add(accountBalance.Balance)
+		if accountBalance.IncludeInDashboardTotal {
+			totalBalance = totalBalance.Add(accountBalance.Balance)
+		}
 	}
 
-	monthlyIncome, err := service.repository.SumIncome(ctx, input.UserID, input.Period)
+	transactions, err := service.repository.FindTransactionsByPeriod(ctx, input.UserID, input.Period)
 	if err != nil {
 		return ports.MonthlyDashboardDTO{}, err
 	}
-	monthlyExpense, err := service.repository.SumExpense(ctx, input.UserID, input.Period)
-	if err != nil {
-		return ports.MonthlyDashboardDTO{}, err
-	}
+	transactionTotals := transactiondomain.CalculateTransactionTotals(transactions)
 	expensesByCategory, err := service.repository.FindExpensesByCategory(ctx, input.UserID, input.Period)
 	if err != nil {
 		return ports.MonthlyDashboardDTO{}, err
@@ -58,9 +58,11 @@ func (service DashboardService) GetMonthlyDashboard(ctx context.Context, input p
 		UserID:             input.UserID,
 		Period:             input.Period,
 		TotalBalance:       totalBalance,
-		MonthlyIncome:      monthlyIncome,
-		MonthlyExpense:     monthlyExpense,
-		MonthlyNetBalance:  monthlyIncome.Sub(monthlyExpense),
+		MonthlyIncome:      transactionTotals.IncomeTotal,
+		MonthlyExpense:     transactionTotals.ExpenseTotal,
+		MonthlyTransferIn:  transactionTotals.TransferInTotal,
+		MonthlyTransferOut: transactionTotals.TransferOutTotal,
+		MonthlyNetBalance:  transactionTotals.IncomeTotal.Sub(transactionTotals.ExpenseTotal),
 		AccountBalances:    nonNilAccountBalances(accountBalances),
 		ExpensesByCategory: nonNilExpensesByCategory(expensesByCategory),
 		RecentTransactions: nonNilRecentTransactions(recentTransactions),

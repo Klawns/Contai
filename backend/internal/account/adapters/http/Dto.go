@@ -8,29 +8,32 @@ import (
 const timeFormatRFC3339 = "2006-01-02T15:04:05Z07:00"
 
 type createAccountRequest struct {
-	Name           string `json:"name" binding:"required"`
-	Type           string `json:"type" binding:"required"`
-	InitialBalance int64  `json:"initialBalance"`
-	BankIconID     string `json:"bankIconId" binding:"required"`
+	Name                    string `json:"name" binding:"required"`
+	Type                    string `json:"type" binding:"required"`
+	InitialBalance          int64  `json:"initialBalance"`
+	BankIconID              string `json:"bankIconId" binding:"required"`
+	IncludeInDashboardTotal *bool  `json:"includeInDashboardTotal"`
 }
 
 type updateAccountRequest struct {
-	Name       string `json:"name" binding:"required"`
-	Type       string `json:"type" binding:"required"`
-	BankIconID string `json:"bankIconId" binding:"required"`
+	Name                    string `json:"name" binding:"required"`
+	Type                    string `json:"type" binding:"required"`
+	BankIconID              string `json:"bankIconId" binding:"required"`
+	IncludeInDashboardTotal *bool  `json:"includeInDashboardTotal"`
 }
 
 type accountResponse struct {
-	ID             string `json:"id"`
-	UserID         string `json:"userId"`
-	Name           string `json:"name"`
-	Type           string `json:"type"`
-	InitialBalance int64  `json:"initialBalance"`
-	CurrentBalance int64  `json:"currentBalance"`
-	BankIconID     string `json:"bankIconId"`
-	Status         string `json:"status"`
-	CreatedAt      string `json:"createdAt"`
-	UpdatedAt      string `json:"updatedAt"`
+	ID                      string `json:"id"`
+	UserID                  string `json:"userId"`
+	Name                    string `json:"name"`
+	Type                    string `json:"type"`
+	InitialBalance          int64  `json:"initialBalance"`
+	CurrentBalance          int64  `json:"currentBalance"`
+	BankIconID              string `json:"bankIconId"`
+	IncludeInDashboardTotal bool   `json:"includeInDashboardTotal"`
+	Status                  string `json:"status"`
+	CreatedAt               string `json:"createdAt"`
+	UpdatedAt               string `json:"updatedAt"`
 }
 
 type totalBalanceResponse struct {
@@ -39,16 +42,17 @@ type totalBalanceResponse struct {
 
 func toAccountResponse(account ports.AccountDTO) accountResponse {
 	return accountResponse{
-		ID:             string(account.ID),
-		UserID:         string(account.UserID),
-		Name:           account.Name,
-		Type:           string(account.Type),
-		InitialBalance: account.InitialBalance.Cents(),
-		CurrentBalance: account.CurrentBalance.Cents(),
-		BankIconID:     account.BankIconID,
-		Status:         string(account.Status),
-		CreatedAt:      account.CreatedAt.Format(timeFormatRFC3339),
-		UpdatedAt:      account.UpdatedAt.Format(timeFormatRFC3339),
+		ID:                      string(account.ID),
+		UserID:                  string(account.UserID),
+		Name:                    account.Name,
+		Type:                    string(account.Type),
+		InitialBalance:          account.InitialBalance.Cents(),
+		CurrentBalance:          account.CurrentBalance.Cents(),
+		BankIconID:              account.BankIconID,
+		IncludeInDashboardTotal: account.IncludeInDashboardTotal,
+		Status:                  string(account.Status),
+		CreatedAt:               account.CreatedAt.Format(timeFormatRFC3339),
+		UpdatedAt:               account.UpdatedAt.Format(timeFormatRFC3339),
 	}
 }
 

@@ -64,11 +64,12 @@ func (handler Handler) CreateAccount(ctx *gin.Context) {
 	}
 
 	account, err := handler.accountService.CreateAccount(ctx.Request.Context(), ports.CreateAccountInput{
-		UserID:         authenticatedUser.UserID,
-		Name:           request.Name,
-		Type:           domain.AccountType(request.Type),
-		InitialBalance: financedomain.NewMoney(request.InitialBalance),
-		BankIconID:     request.BankIconID,
+		UserID:                  authenticatedUser.UserID,
+		Name:                    request.Name,
+		Type:                    domain.AccountType(request.Type),
+		InitialBalance:          financedomain.NewMoney(request.InitialBalance),
+		BankIconID:              request.BankIconID,
+		IncludeInDashboardTotal: request.IncludeInDashboardTotal,
 	})
 	if err != nil {
 		writeError(ctx, err)
@@ -112,11 +113,12 @@ func (handler Handler) UpdateAccount(ctx *gin.Context) {
 	}
 
 	account, err := handler.accountService.UpdateAccount(ctx.Request.Context(), ports.UpdateAccountInput{
-		UserID:     authenticatedUser.UserID,
-		AccountID:  domain.AccountID(ctx.Param("accountID")),
-		Name:       request.Name,
-		Type:       domain.AccountType(request.Type),
-		BankIconID: request.BankIconID,
+		UserID:                  authenticatedUser.UserID,
+		AccountID:               domain.AccountID(ctx.Param("accountID")),
+		Name:                    request.Name,
+		Type:                    domain.AccountType(request.Type),
+		BankIconID:              request.BankIconID,
+		IncludeInDashboardTotal: request.IncludeInDashboardTotal,
 	})
 	if err != nil {
 		writeError(ctx, err)

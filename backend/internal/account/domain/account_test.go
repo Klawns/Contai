@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"testing"
+	"time"
 
 	financedomain "contai/internal/finance/domain"
 )
@@ -22,6 +23,9 @@ func TestNewAccountSetsCurrentBalanceFromInitialBalance(t *testing.T) {
 	if account.Status != AccountStatusActive {
 		t.Fatalf("expected active account, got %s", account.Status)
 	}
+	if !account.IncludeInDashboardTotal {
+		t.Fatal("expected account to be included in dashboard total by default")
+	}
 }
 
 func TestNewAccountValidatesRequiredFields(t *testing.T) {
@@ -37,13 +41,27 @@ func TestAccountEditDoesNotChangeBalances(t *testing.T) {
 	initial := account.InitialBalance
 	current := account.CurrentBalance
 
-	err := account.Edit("Savings", AccountTypeSavings, "bank-2")
+	err := account.Edit("Savings", AccountTypeSavings, "bank-2", false)
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if account.InitialBalance != initial || account.CurrentBalance != current {
 		t.Fatalf("expected balances to be preserved, got initial=%d current=%d", account.InitialBalance.Cents(), account.CurrentBalance.Cents())
+	}
+	if account.IncludeInDashboardTotal {
+		t.Fatal("expected dashboard total flag to be editable")
+	}
+}
+
+func TestRehydrateAccountPreservesDashboardTotalFlag(t *testing.T) {
+	account, err := RehydrateAccount("account-id", "user-id", "Checking", AccountTypeChecking, financedomain.NewMoney(1000), financedomain.NewMoney(1200), "bank", false, AccountStatusActive, timeNow(), timeNow())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if account.IncludeInDashboardTotal {
+		t.Fatal("expected rehydrated account to preserve false dashboard total flag")
 	}
 }
 
@@ -62,6 +80,10 @@ func TestAccountBalanceMutationsRequirePositiveAmount(t *testing.T) {
 	if !errors.Is(err, ErrAccountMutationAmountInvalid) {
 		t.Fatalf("expected invalid mutation amount, got %v", err)
 	}
+}
+
+func timeNow() time.Time {
+	return time.Now()
 }
 
 func TestAccountStatusChanges(t *testing.T) {

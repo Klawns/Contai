@@ -54,6 +54,32 @@ func TestHandlerCreateAccountUsesAuthenticatedUser(t *testing.T) {
 	if service.createInput.InitialBalance.Cents() != 1500 {
 		t.Fatalf("expected cents from request, got %d", service.createInput.InitialBalance.Cents())
 	}
+	if service.createInput.IncludeInDashboardTotal != nil {
+		t.Fatal("expected omitted dashboard total flag to stay nil in service input")
+	}
+}
+
+func TestHandlerCreateAccountAcceptsDashboardTotalFalse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &fakeAccountService{}
+	router := authenticatedAccountRouter(service)
+	body := bytes.NewBufferString(`{"name":"Checking","type":"checking","initialBalance":1500,"bankIconId":"bank_1","includeInDashboardTotal":false}`)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/accounts", body)
+	request.Header.Set("Content-Type", "application/json")
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if service.createInput.IncludeInDashboardTotal == nil || *service.createInput.IncludeInDashboardTotal {
+		t.Fatalf("expected false dashboard total flag, got %#v", service.createInput.IncludeInDashboardTotal)
+	}
+	if !bytes.Contains(recorder.Body.Bytes(), []byte(`"includeInDashboardTotal":false`)) {
+		t.Fatalf("expected response to include dashboard total flag, got %s", recorder.Body.String())
+	}
 }
 
 func TestHandlerTotalBalanceResponse(t *testing.T) {
@@ -114,6 +140,7 @@ type fakeAccountService struct {
 	err             error
 	total           financedomain.Money
 	createInput     ports.CreateAccountInput
+	updateInput     ports.UpdateAccountInput
 	inactivateInput ports.InactivateAccountInput
 }
 
@@ -122,7 +149,11 @@ func (service *fakeAccountService) CreateAccount(ctx context.Context, input port
 	if service.err != nil {
 		return ports.AccountDTO{}, service.err
 	}
-	return fakeAccountDTO(input.UserID), nil
+	account := fakeAccountDTO(input.UserID)
+	if input.IncludeInDashboardTotal != nil {
+		account.IncludeInDashboardTotal = *input.IncludeInDashboardTotal
+	}
+	return account, nil
 }
 
 func (service *fakeAccountService) ListAccounts(ctx context.Context, input ports.ListAccountsInput) ([]ports.AccountDTO, error) {
@@ -137,6 +168,7 @@ func (service *fakeAccountService) FindActiveAccountsByUserID(ctx context.Contex
 }
 
 func (service *fakeAccountService) UpdateAccount(ctx context.Context, input ports.UpdateAccountInput) (ports.AccountDTO, error) {
+	service.updateInput = input
 	if service.err != nil {
 		return ports.AccountDTO{}, service.err
 	}
@@ -161,15 +193,16 @@ func (service *fakeAccountService) GetTotalBalance(ctx context.Context, input po
 func fakeAccountDTO(userID userdomain.UserID) ports.AccountDTO {
 	now := time.Now()
 	return ports.AccountDTO{
-		ID:             "account-id",
-		UserID:         userID,
-		Name:           "Checking",
-		Type:           domain.AccountTypeChecking,
-		InitialBalance: financedomain.NewMoney(1500),
-		CurrentBalance: financedomain.NewMoney(1500),
-		BankIconID:     "bank_1",
-		Status:         domain.AccountStatusActive,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ID:                      "account-id",
+		UserID:                  userID,
+		Name:                    "Checking",
+		Type:                    domain.AccountTypeChecking,
+		InitialBalance:          financedomain.NewMoney(1500),
+		CurrentBalance:          financedomain.NewMoney(1500),
+		BankIconID:              "bank_1",
+		IncludeInDashboardTotal: true,
+		Status:                  domain.AccountStatusActive,
+		CreatedAt:               now,
+		UpdatedAt:               now,
 	}
 }
