@@ -22,6 +22,20 @@ type monthlyDashboardResponse struct {
 	RecentTransactions []recentTransactionResponse `json:"recentTransactions"`
 }
 
+type monthlySeriesResponse struct {
+	UserID string                       `json:"userId"`
+	Period periodResponse               `json:"period"`
+	Points []monthlySeriesPointResponse `json:"points"`
+}
+
+type monthlySeriesPointResponse struct {
+	MonthStartAt string `json:"monthStartAt"`
+	MonthEndAt   string `json:"monthEndAt"`
+	Income       int64  `json:"income"`
+	Expense      int64  `json:"expense"`
+	Balance      int64  `json:"balance"`
+}
+
 type periodResponse struct {
 	StartAt string `json:"startAt"`
 	EndAt   string `json:"endAt"`
@@ -59,6 +73,31 @@ type recentTransactionResponse struct {
 	RemovedAt            *string `json:"removedAt"`
 	CreatedAt            string  `json:"createdAt"`
 	UpdatedAt            string  `json:"updatedAt"`
+}
+
+func toMonthlySeriesResponse(series ports.MonthlySeriesDTO) monthlySeriesResponse {
+	return monthlySeriesResponse{
+		UserID: string(series.UserID),
+		Period: periodResponse{
+			StartAt: series.Period.StartAt.Format(timeFormatRFC3339),
+			EndAt:   series.Period.EndAt.Format(timeFormatRFC3339),
+		},
+		Points: toMonthlySeriesPointResponses(series.Points),
+	}
+}
+
+func toMonthlySeriesPointResponses(values []ports.MonthlySeriesPointDTO) []monthlySeriesPointResponse {
+	responses := make([]monthlySeriesPointResponse, 0, len(values))
+	for _, value := range values {
+		responses = append(responses, monthlySeriesPointResponse{
+			MonthStartAt: value.MonthStartAt.Format(timeFormatRFC3339),
+			MonthEndAt:   value.MonthEndAt.Format(timeFormatRFC3339),
+			Income:       value.Income.Cents(),
+			Expense:      value.Expense.Cents(),
+			Balance:      value.Balance.Cents(),
+		})
+	}
+	return responses
 }
 
 func toMonthlyDashboardResponse(dashboard ports.MonthlyDashboardDTO) monthlyDashboardResponse {

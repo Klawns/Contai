@@ -34,6 +34,21 @@ func TestHandlerRequiresAuthenticatedUser(t *testing.T) {
 	}
 }
 
+func TestHandlerMonthlySeriesRequiresAuthenticatedUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	NewHandler(&fakeDashboardService{}).RegisterForTest(router)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/dashboard/monthly-series?startAt=2026-01-01T00:00:00Z&endAt=2026-01-31T23:59:59Z", nil)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
+
 func TestHandlerUsesAuthenticatedUserAndParsesPeriod(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := &fakeDashboardService{}
@@ -52,6 +67,27 @@ func TestHandlerUsesAuthenticatedUserAndParsesPeriod(t *testing.T) {
 	}
 	if service.input.Period.StartAt.Format(time.RFC3339) != "2026-01-01T00:00:00Z" {
 		t.Fatalf("expected parsed startAt, got %s", service.input.Period.StartAt.Format(time.RFC3339))
+	}
+}
+
+func TestHandlerMonthlySeriesUsesAuthenticatedUserAndParsesPeriod(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &fakeDashboardService{}
+	router := authenticatedDashboardRouter(service)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/dashboard/monthly-series?startAt=2026-01-01T00:00:00Z&endAt=2026-01-31T23:59:59Z", nil)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if service.seriesInput.UserID != "authenticated-user" {
+		t.Fatalf("expected authenticated user id, got %s", service.seriesInput.UserID)
+	}
+	if service.seriesInput.Period.StartAt.Format(time.RFC3339) != "2026-01-01T00:00:00Z" {
+		t.Fatalf("expected parsed startAt, got %s", service.seriesInput.Period.StartAt.Format(time.RFC3339))
 	}
 }
 
@@ -124,14 +160,54 @@ func TestHandlerSerializesCamelCaseMoneyInCents(t *testing.T) {
 	}
 }
 
+func TestHandlerSerializesMonthlySeriesCamelCaseMoneyInCents(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service := &fakeDashboardService{series: ports.MonthlySeriesDTO{
+		UserID: "authenticated-user",
+		Period: mustPeriod(t),
+		Points: []ports.MonthlySeriesPointDTO{
+			{
+				MonthStartAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				MonthEndAt:   time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC),
+				Income:       financedomain.NewMoney(7000),
+				Expense:      financedomain.NewMoney(2500),
+				Balance:      financedomain.NewMoney(4500),
+			},
+		},
+	}}
+	router := authenticatedDashboardRouter(service)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/dashboard/monthly-series?startAt=2026-01-01T00:00:00Z&endAt=2026-01-31T23:59:59Z", nil)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, expected := range []string{
+		`"userId":"authenticated-user"`,
+		`"period":{"startAt":"2026-01-01T00:00:00Z","endAt":"2026-01-31T23:59:59Z"}`,
+		`"points":[{"monthStartAt":"2026-01-01T00:00:00Z","monthEndAt":"2026-01-31T23:59:59Z","income":7000,"expense":2500,"balance":4500}]`,
+	} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("expected response to contain %s, got %s", expected, body)
+		}
+	}
+}
+
 func TestHandlerReturnsBadRequestForMissingOrInvalidDates(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := authenticatedDashboardRouter(&fakeDashboardService{})
 
 	for _, path := range []string{
 		"/dashboard/monthly?endAt=2026-01-31T23:59:59Z",
+		"/dashboard/monthly-series?endAt=2026-01-31T23:59:59Z",
 		"/dashboard/monthly?startAt=invalid&endAt=2026-01-31T23:59:59Z",
+		"/dashboard/monthly-series?startAt=invalid&endAt=2026-01-31T23:59:59Z",
 		"/dashboard/monthly?startAt=2026-02-01T00:00:00Z&endAt=2026-01-31T23:59:59Z",
+		"/dashboard/monthly-series?startAt=2026-02-01T00:00:00Z&endAt=2026-01-31T23:59:59Z",
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, path, nil)
@@ -156,12 +232,15 @@ func authenticatedDashboardRouter(service *fakeDashboardService) *gin.Engine {
 
 func (handler Handler) RegisterForTest(router *gin.Engine) {
 	router.GET("/dashboard/monthly", handler.GetMonthlyDashboard)
+	router.GET("/dashboard/monthly-series", handler.GetMonthlySeries)
 }
 
 type fakeDashboardService struct {
-	input     ports.GetMonthlyDashboardInput
-	dashboard ports.MonthlyDashboardDTO
-	err       error
+	input       ports.GetMonthlyDashboardInput
+	seriesInput ports.GetMonthlySeriesInput
+	dashboard   ports.MonthlyDashboardDTO
+	series      ports.MonthlySeriesDTO
+	err         error
 }
 
 func (service *fakeDashboardService) GetMonthlyDashboard(ctx context.Context, input ports.GetMonthlyDashboardInput) (ports.MonthlyDashboardDTO, error) {
@@ -178,6 +257,21 @@ func (service *fakeDashboardService) GetMonthlyDashboard(ctx context.Context, in
 		AccountBalances:    []ports.AccountBalanceDTO{},
 		ExpensesByCategory: []ports.CategoryExpenseDTO{},
 		RecentTransactions: []ports.TransactionDTO{},
+	}, nil
+}
+
+func (service *fakeDashboardService) GetMonthlySeries(ctx context.Context, input ports.GetMonthlySeriesInput) (ports.MonthlySeriesDTO, error) {
+	service.seriesInput = input
+	if service.err != nil {
+		return ports.MonthlySeriesDTO{}, service.err
+	}
+	if service.series.UserID != "" {
+		return service.series, nil
+	}
+	return ports.MonthlySeriesDTO{
+		UserID: input.UserID,
+		Period: input.Period,
+		Points: []ports.MonthlySeriesPointDTO{},
 	}, nil
 }
 

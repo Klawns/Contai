@@ -44,6 +44,31 @@ func (handler Handler) GetMonthlyDashboard(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, toMonthlyDashboardResponse(dashboard))
 }
 
+func (handler Handler) GetMonthlySeries(ctx *gin.Context) {
+	authenticatedUser, ok := authhttp.AuthenticatedUserFromContext(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	period, err := parsePeriod(ctx.Query("startAt"), ctx.Query("endAt"))
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+
+	series, err := handler.dashboardService.GetMonthlySeries(ctx.Request.Context(), ports.GetMonthlySeriesInput{
+		UserID: authenticatedUser.UserID,
+		Period: period,
+	})
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, toMonthlySeriesResponse(series))
+}
+
 func parsePeriod(startAtValue, endAtValue string) (domain.Period, error) {
 	if startAtValue == "" || endAtValue == "" {
 		return domain.Period{}, domain.ErrDashboardInvalidPeriod

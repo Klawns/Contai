@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	"contai/internal/dashboard/app/ports"
 	"contai/internal/dashboard/domain"
@@ -67,6 +68,78 @@ func (service DashboardService) GetMonthlyDashboard(ctx context.Context, input p
 		ExpensesByCategory: nonNilExpensesByCategory(expensesByCategory),
 		RecentTransactions: nonNilRecentTransactions(recentTransactions),
 	}, nil
+}
+
+func (service DashboardService) GetMonthlySeries(ctx context.Context, input ports.GetMonthlySeriesInput) (ports.MonthlySeriesDTO, error) {
+	if input.UserID == "" {
+		return ports.MonthlySeriesDTO{}, domain.ErrDashboardUserIDRequired
+	}
+	if err := input.Period.Validate(); err != nil {
+		return ports.MonthlySeriesDTO{}, err
+	}
+
+	months := monthlyPeriods(input.Period)
+	monthEnds := make([]time.Time, 0, len(months))
+	for _, month := range months {
+		monthEnds = append(monthEnds, month.MonthEndAt)
+	}
+
+	incomeExpenses, err := service.repository.FindMonthlyIncomeExpense(ctx, input.UserID, input.Period)
+	if err != nil {
+		return ports.MonthlySeriesDTO{}, err
+	}
+	balances, err := service.repository.FindMonthlyBalances(ctx, input.UserID, monthEnds)
+	if err != nil {
+		return ports.MonthlySeriesDTO{}, err
+	}
+
+	incomeExpenseByMonth := map[string]ports.MonthlyIncomeExpenseDTO{}
+	for _, value := range incomeExpenses {
+		incomeExpenseByMonth[monthKey(value.MonthStartAt)] = value
+	}
+	balanceByMonthEnd := map[string]financedomain.Money{}
+	for _, value := range balances {
+		balanceByMonthEnd[monthKey(value.MonthEndAt)] = value.Balance
+	}
+
+	points := make([]ports.MonthlySeriesPointDTO, 0, len(months))
+	for _, month := range months {
+		incomeExpense := incomeExpenseByMonth[monthKey(month.MonthStartAt)]
+		points = append(points, ports.MonthlySeriesPointDTO{
+			MonthStartAt: month.MonthStartAt,
+			MonthEndAt:   month.MonthEndAt,
+			Income:       incomeExpense.Income,
+			Expense:      incomeExpense.Expense,
+			Balance:      balanceByMonthEnd[monthKey(month.MonthEndAt)],
+		})
+	}
+
+	return ports.MonthlySeriesDTO{
+		UserID: input.UserID,
+		Period: input.Period,
+		Points: points,
+	}, nil
+}
+
+func monthlyPeriods(period domain.Period) []ports.MonthlySeriesPointDTO {
+	location := period.StartAt.Location()
+	cursor := time.Date(period.StartAt.In(location).Year(), period.StartAt.In(location).Month(), 1, 0, 0, 0, 0, location)
+	last := period.EndAt.In(location)
+	months := []ports.MonthlySeriesPointDTO{}
+	for !cursor.After(last) {
+		nextMonth := cursor.AddDate(0, 1, 0)
+		monthEnd := nextMonth.Add(-time.Second)
+		months = append(months, ports.MonthlySeriesPointDTO{
+			MonthStartAt: cursor,
+			MonthEndAt:   monthEnd,
+		})
+		cursor = nextMonth
+	}
+	return months
+}
+
+func monthKey(value time.Time) string {
+	return value.Format("2006-01")
 }
 
 func nonNilAccountBalances(values []ports.AccountBalanceDTO) []ports.AccountBalanceDTO {

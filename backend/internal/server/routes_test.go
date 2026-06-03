@@ -99,7 +99,8 @@ func TestRegisterRoutesIncludesAuthenticatedDashboardRoutes(t *testing.T) {
 
 	routes := router.Routes()
 	expected := map[string]string{
-		http.MethodGet + " /api/dashboard/monthly": "",
+		http.MethodGet + " /api/dashboard/monthly":        "",
+		http.MethodGet + " /api/dashboard/monthly-series": "",
 	}
 
 	for _, route := range routes {
@@ -114,7 +115,7 @@ func TestRegisterRoutesIncludesAuthenticatedDashboardRoutes(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/dashboard/monthly", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/dashboard/monthly-series", nil)
 
 	router.ServeHTTP(recorder, request)
 

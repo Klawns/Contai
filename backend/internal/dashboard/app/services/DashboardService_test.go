@@ -41,6 +41,81 @@ func TestDashboardServiceRejectsInvalidPeriod(t *testing.T) {
 	}
 }
 
+func TestDashboardServiceMonthlySeriesRequiresUserID(t *testing.T) {
+	service := NewDashboardService(&fakeDashboardRepository{})
+	period := validPeriod(t)
+
+	_, err := service.GetMonthlySeries(context.Background(), ports.GetMonthlySeriesInput{Period: period})
+
+	if !errors.Is(err, domain.ErrDashboardUserIDRequired) {
+		t.Fatalf("expected user id required, got %v", err)
+	}
+}
+
+func TestDashboardServiceMonthlySeriesRejectsInvalidPeriod(t *testing.T) {
+	service := NewDashboardService(&fakeDashboardRepository{})
+
+	_, err := service.GetMonthlySeries(context.Background(), ports.GetMonthlySeriesInput{
+		UserID: "user-id",
+		Period: domain.Period{
+			StartAt: time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC),
+			EndAt:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+	})
+
+	if !errors.Is(err, domain.ErrDashboardInvalidPeriod) {
+		t.Fatalf("expected invalid period, got %v", err)
+	}
+}
+
+func TestDashboardServiceMonthlySeriesFillsEmptyMonthsAndOrdersPoints(t *testing.T) {
+	period, err := domain.NewPeriod(
+		time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 3, 20, 23, 59, 59, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("expected period, got %v", err)
+	}
+	repository := &fakeDashboardRepository{
+		monthlyIncomeExpense: []ports.MonthlyIncomeExpenseDTO{
+			{MonthStartAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), Income: financedomain.NewMoney(5000), Expense: financedomain.NewMoney(1200)},
+			{MonthStartAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), Income: financedomain.NewMoney(7000), Expense: financedomain.NewMoney(2500)},
+		},
+		monthlyBalances: []ports.MonthlyBalanceDTO{
+			{MonthEndAt: time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC), Balance: financedomain.NewMoney(3800)},
+			{MonthEndAt: time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC), Balance: financedomain.NewMoney(3800)},
+			{MonthEndAt: time.Date(2026, 3, 31, 23, 59, 59, 0, time.UTC), Balance: financedomain.NewMoney(8300)},
+		},
+	}
+	service := NewDashboardService(repository)
+
+	series, err := service.GetMonthlySeries(context.Background(), ports.GetMonthlySeriesInput{
+		UserID: "user-id",
+		Period: period,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(series.Points) != 3 {
+		t.Fatalf("expected three points, got %#v", series.Points)
+	}
+	if series.Points[0].MonthStartAt.Format("2006-01-02") != "2026-01-01" ||
+		series.Points[1].MonthStartAt.Format("2006-01-02") != "2026-02-01" ||
+		series.Points[2].MonthStartAt.Format("2006-01-02") != "2026-03-01" {
+		t.Fatalf("expected ordered months, got %#v", series.Points)
+	}
+	if series.Points[1].Income.Cents() != 0 || series.Points[1].Expense.Cents() != 0 || series.Points[1].Balance.Cents() != 3800 {
+		t.Fatalf("expected empty february with balance, got %#v", series.Points[1])
+	}
+	if series.Points[2].Income.Cents() != 7000 || series.Points[2].Expense.Cents() != 2500 || series.Points[2].Balance.Cents() != 8300 {
+		t.Fatalf("expected march totals, got %#v", series.Points[2])
+	}
+	if len(repository.monthEnds) != 3 {
+		t.Fatalf("expected three month ends, got %#v", repository.monthEnds)
+	}
+}
+
 func TestDashboardServiceCalculatesBalances(t *testing.T) {
 	period := validPeriod(t)
 	repository := &fakeDashboardRepository{
@@ -127,13 +202,16 @@ func validPeriod(t *testing.T) domain.Period {
 }
 
 type fakeDashboardRepository struct {
-	accountBalances    []ports.AccountBalanceDTO
-	income             financedomain.Money
-	expense            financedomain.Money
-	expensesByCategory []ports.CategoryExpenseDTO
-	recentTransactions []ports.TransactionDTO
-	transactions       []transactiondomain.Transaction
-	recentLimit        int
+	accountBalances      []ports.AccountBalanceDTO
+	income               financedomain.Money
+	expense              financedomain.Money
+	expensesByCategory   []ports.CategoryExpenseDTO
+	recentTransactions   []ports.TransactionDTO
+	transactions         []transactiondomain.Transaction
+	monthlyIncomeExpense []ports.MonthlyIncomeExpenseDTO
+	monthlyBalances      []ports.MonthlyBalanceDTO
+	monthEnds            []time.Time
+	recentLimit          int
 }
 
 func (repository *fakeDashboardRepository) FindActiveAccountBalances(ctx context.Context, userID userdomain.UserID) ([]ports.AccountBalanceDTO, error) {
@@ -146,6 +224,15 @@ func (repository *fakeDashboardRepository) SumIncome(ctx context.Context, userID
 
 func (repository *fakeDashboardRepository) SumExpense(ctx context.Context, userID userdomain.UserID, period domain.Period) (financedomain.Money, error) {
 	return repository.expense, nil
+}
+
+func (repository *fakeDashboardRepository) FindMonthlyIncomeExpense(ctx context.Context, userID userdomain.UserID, period domain.Period) ([]ports.MonthlyIncomeExpenseDTO, error) {
+	return repository.monthlyIncomeExpense, nil
+}
+
+func (repository *fakeDashboardRepository) FindMonthlyBalances(ctx context.Context, userID userdomain.UserID, monthEnds []time.Time) ([]ports.MonthlyBalanceDTO, error) {
+	repository.monthEnds = monthEnds
+	return repository.monthlyBalances, nil
 }
 
 func (repository *fakeDashboardRepository) FindTransactionsByPeriod(ctx context.Context, userID userdomain.UserID, period domain.Period) ([]transactiondomain.Transaction, error) {

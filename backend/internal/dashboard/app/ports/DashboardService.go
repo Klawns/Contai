@@ -17,6 +17,11 @@ type GetMonthlyDashboardInput struct {
 	Period dashboarddomain.Period
 }
 
+type GetMonthlySeriesInput struct {
+	UserID userdomain.UserID
+	Period dashboarddomain.Period
+}
+
 type MonthlyDashboardDTO struct {
 	UserID             userdomain.UserID
 	Period             dashboarddomain.Period
@@ -29,6 +34,20 @@ type MonthlyDashboardDTO struct {
 	AccountBalances    []AccountBalanceDTO
 	ExpensesByCategory []CategoryExpenseDTO
 	RecentTransactions []TransactionDTO
+}
+
+type MonthlySeriesDTO struct {
+	UserID userdomain.UserID
+	Period dashboarddomain.Period
+	Points []MonthlySeriesPointDTO
+}
+
+type MonthlySeriesPointDTO struct {
+	MonthStartAt time.Time
+	MonthEndAt   time.Time
+	Income       financedomain.Money
+	Expense      financedomain.Money
+	Balance      financedomain.Money
 }
 
 type AccountBalanceDTO struct {
@@ -68,4 +87,5 @@ type TransactionDTO struct {
 
 type DashboardService interface {
 	GetMonthlyDashboard(ctx context.Context, input GetMonthlyDashboardInput) (MonthlyDashboardDTO, error)
+	GetMonthlySeries(ctx context.Context, input GetMonthlySeriesInput) (MonthlySeriesDTO, error)
 }

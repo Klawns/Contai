@@ -58,6 +58,87 @@ func (repository Repository) SumExpense(ctx context.Context, userID userdomain.U
 	return repository.sumByType(ctx, userID, period, transactiondomain.TransactionTypeExpense)
 }
 
+func (repository Repository) FindMonthlyIncomeExpense(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period) ([]ports.MonthlyIncomeExpenseDTO, error) {
+	var rows []monthlyIncomeExpenseRow
+	if err := repository.db.WithContext(ctx).
+		Table("transactions").
+		Select(`
+			date_trunc('month', occurred_at) AS month_start_at,
+			COALESCE(SUM(CASE WHEN type = ? THEN amount ELSE 0 END), 0) AS income,
+			COALESCE(SUM(CASE WHEN type = ? THEN amount ELSE 0 END), 0) AS expense
+		`, string(transactiondomain.TransactionTypeIncome), string(transactiondomain.TransactionTypeExpense)).
+		Where("user_id = ?", string(userID)).
+		Where("status = ? AND removed_at IS NULL", string(transactiondomain.TransactionStatusActive)).
+		Where("type IN ?", []string{string(transactiondomain.TransactionTypeIncome), string(transactiondomain.TransactionTypeExpense)}).
+		Where("occurred_at >= ? AND occurred_at <= ?", period.StartAt, period.EndAt).
+		Group("date_trunc('month', occurred_at)").
+		Order("month_start_at ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	values := make([]ports.MonthlyIncomeExpenseDTO, 0, len(rows))
+	for _, row := range rows {
+		values = append(values, ports.MonthlyIncomeExpenseDTO{
+			MonthStartAt: row.MonthStartAt,
+			Income:       financedomain.NewMoney(row.Income),
+			Expense:      financedomain.NewMoney(row.Expense),
+		})
+	}
+	return values, nil
+}
+
+func (repository Repository) FindMonthlyBalances(ctx context.Context, userID userdomain.UserID, monthEnds []time.Time) ([]ports.MonthlyBalanceDTO, error) {
+	balances := make([]ports.MonthlyBalanceDTO, 0, len(monthEnds))
+	for _, monthEnd := range monthEnds {
+		var balance int64
+		if err := repository.db.WithContext(ctx).Raw(`
+			SELECT COALESCE(SUM(account_balance), 0)
+			FROM (
+				SELECT
+					accounts.initial_balance + COALESCE(SUM(CASE
+						WHEN transactions.type = ? AND transactions.account_id = accounts.id THEN transactions.amount
+						WHEN transactions.type = ? AND transactions.account_id = accounts.id THEN -transactions.amount
+						WHEN transactions.type = ? AND transactions.source_account_id = accounts.id THEN -transactions.amount
+						WHEN transactions.type = ? AND transactions.destination_account_id = accounts.id THEN transactions.amount
+						ELSE 0
+					END), 0) AS account_balance
+				FROM accounts
+				LEFT JOIN transactions ON transactions.user_id = accounts.user_id
+					AND transactions.status = ?
+					AND transactions.removed_at IS NULL
+					AND transactions.occurred_at <= ?
+					AND (
+						transactions.account_id = accounts.id
+						OR transactions.source_account_id = accounts.id
+						OR transactions.destination_account_id = accounts.id
+					)
+				WHERE accounts.user_id = ?
+					AND accounts.status = ?
+					AND accounts.include_in_dashboard_total = ?
+				GROUP BY accounts.id, accounts.initial_balance
+			) account_balances
+		`,
+			string(transactiondomain.TransactionTypeIncome),
+			string(transactiondomain.TransactionTypeExpense),
+			string(transactiondomain.TransactionTypeTransfer),
+			string(transactiondomain.TransactionTypeTransfer),
+			string(transactiondomain.TransactionStatusActive),
+			monthEnd,
+			string(userID),
+			string(accountdomain.AccountStatusActive),
+			true,
+		).Scan(&balance).Error; err != nil {
+			return nil, err
+		}
+		balances = append(balances, ports.MonthlyBalanceDTO{
+			MonthEndAt: monthEnd,
+			Balance:    financedomain.NewMoney(balance),
+		})
+	}
+	return balances, nil
+}
+
 func (repository Repository) FindTransactionsByPeriod(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period) ([]transactiondomain.Transaction, error) {
 	var rows []recentTransactionRow
 	if err := repository.db.WithContext(ctx).
@@ -179,6 +260,12 @@ type expenseByCategoryRow struct {
 	Color      string
 	Icon       string
 	Total      int64
+}
+
+type monthlyIncomeExpenseRow struct {
+	MonthStartAt time.Time
+	Income       int64
+	Expense      int64
 }
 
 type recentTransactionRow struct {
