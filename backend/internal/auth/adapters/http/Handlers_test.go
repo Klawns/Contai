@@ -112,6 +112,9 @@ func TestHandler_MeRequiresValidCookie(t *testing.T) {
 	if !strings.Contains(authorized.Body.String(), "john@example.com") {
 		t.Fatalf("expected current user, got %s", authorized.Body.String())
 	}
+	if !strings.Contains(authorized.Body.String(), `"name":"John Doe"`) {
+		t.Fatalf("expected current user name, got %s", authorized.Body.String())
+	}
 }
 
 func TestHandler_CreateUserReturnsWeakPasswordError(t *testing.T) {
@@ -194,5 +197,11 @@ func (service fakeHTTPUserService) CreateUser(ctx context.Context, input userpor
 }
 
 func (service fakeHTTPUserService) GetUserByID(ctx context.Context, userID userdomain.UserID) (userports.UserDTO, error) {
-	return userports.UserDTO{}, nil
+	return userports.UserDTO{
+		ID:        userID,
+		Name:      "John Doe",
+		Email:     "john@example.com",
+		Status:    userdomain.UserStatusActive,
+		CreatedAt: time.Now(),
+	}, nil
 }

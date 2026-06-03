@@ -25,6 +25,7 @@ type userResponse struct {
 
 type authenticatedUserResponse struct {
 	ID     string `json:"id"`
+	Name   string `json:"name,omitempty"`
 	Email  string `json:"email"`
 	Status string `json:"status"`
 }

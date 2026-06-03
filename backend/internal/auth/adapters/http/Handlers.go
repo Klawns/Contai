@@ -107,10 +107,17 @@ func (handler Handler) Me(ctx *gin.Context) {
 		return
 	}
 
+	user, err := handler.userService.GetUserByID(ctx.Request.Context(), authenticatedUser.UserID)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+
 	ctx.JSON(http.StatusOK, authenticatedUserResponse{
-		ID:     string(authenticatedUser.UserID),
-		Email:  authenticatedUser.Email,
-		Status: string(authenticatedUser.Status),
+		ID:     string(user.ID),
+		Name:   user.Name,
+		Email:  user.Email,
+		Status: string(user.Status),
 	})
 }
 
