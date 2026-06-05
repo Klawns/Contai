@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { DashboardEmptyStateCard } from '../DashboardEmptyStateCard.tsx'
+import { DashboardEmptyStateCard } from '../cards/DashboardEmptyStateCard.tsx'
 import { ChartCard } from './ChartCard.tsx'
 import { MonthlyBalanceEvolutionCard } from './MonthlyBalanceEvolutionCard.tsx'
 import { MonthlyIncomeExpenseChartCard } from './MonthlyIncomeExpenseChartCard.tsx'

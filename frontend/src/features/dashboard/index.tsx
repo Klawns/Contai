@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { LogOut } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import type { AuthenticatedUser } from '../auth/types/auth.ts'
 import type { ProfileAction } from '../auth/components/ProfileActionsDropdown.tsx'
 import {
@@ -13,7 +14,7 @@ import {
 import { summaryDisplayState } from './data/dashboardMocks.ts'
 import { useMonthlyDashboard, useMonthlySeries } from './hooks/useMonthlyDashboard.ts'
 import type { DashboardPeriod, MonthlyFinancialSeriesPoint } from './types/dashboard.ts'
-import type { SelectedMonth } from './components/controls/MonthSelector.tsx'
+import type { SelectedMonth } from '../../components/MonthSelector.tsx'
 
 type DashboardProps = {
   user: AuthenticatedUser
@@ -65,16 +66,6 @@ function parseMonthQuery(value: string | null): SelectedMonth | null {
   }
 }
 
-function getInitialSelectedMonth(): SelectedMonth {
-  if (typeof window === 'undefined') {
-    return getCurrentSelectedMonth()
-  }
-
-  const params = new URLSearchParams(window.location.search)
-
-  return parseMonthQuery(params.get('month')) ?? getCurrentSelectedMonth()
-}
-
 function formatMonthQuery(month: SelectedMonth) {
   return `${month.year}-${String(month.monthIndex + 1).padStart(2, '0')}`
 }
@@ -115,7 +106,11 @@ function toChartSeries(points: { monthStartAt: string; income: number; expense: 
 }
 
 export function Dashboard({ user, isLoggingOut, onLogout }: DashboardProps) {
-  const [selectedMonth, setSelectedMonth] = useState(getInitialSelectedMonth)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedMonth = useMemo(
+    () => parseMonthQuery(searchParams.get('month')) ?? getCurrentSelectedMonth(),
+    [searchParams],
+  )
   const period = useMemo(() => getMonthPeriod(selectedMonth), [selectedMonth])
   const seriesPeriod = useMemo(() => getMonthlySeriesPeriod(selectedMonth), [selectedMonth])
   const { data: monthlyDashboard, isLoading, isError } = useMonthlyDashboard(period)
@@ -128,16 +123,10 @@ export function Dashboard({ user, isLoggingOut, onLogout }: DashboardProps) {
     summaryDisplayState.isBalanceHidden,
   )
   const updateSelectedMonth = useCallback((nextMonth: SelectedMonth) => {
-    setSelectedMonth(nextMonth)
-
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    const url = new URL(window.location.href)
-    url.searchParams.set('month', formatMonthQuery(nextMonth))
-    window.history.pushState(null, '', `${url.pathname}${url.search}${url.hash}`)
-  }, [])
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('month', formatMonthQuery(nextMonth))
+    setSearchParams(nextParams)
+  }, [searchParams, setSearchParams])
   const profileActions: ProfileAction[] = [
     {
       label: isLoggingOut ? 'Saindo...' : 'Sair',
@@ -147,19 +136,6 @@ export function Dashboard({ user, isLoggingOut, onLogout }: DashboardProps) {
       onSelect: onLogout,
     },
   ]
-
-  useEffect(() => {
-    function handlePopState() {
-      const params = new URLSearchParams(window.location.search)
-      setSelectedMonth(parseMonthQuery(params.get('month')) ?? getCurrentSelectedMonth())
-    }
-
-    window.addEventListener('popstate', handlePopState)
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [])
 
   if (isLoading) {
     return (

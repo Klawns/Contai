@@ -4,8 +4,8 @@ import {
   ProfileActionsDropdown,
   type ProfileAction,
 } from '../../../auth/components/ProfileActionsDropdown.tsx'
+import { MonthSelector, type SelectedMonth } from '../../../../components/MonthSelector.tsx'
 import { IncomeExpenseSummary } from './IncomeExpenseSummary.tsx'
-import { MonthSelector, type SelectedMonth } from '../controls/MonthSelector.tsx'
 
 type BalanceSummaryCardProps = {
   selectedMonth: SelectedMonth

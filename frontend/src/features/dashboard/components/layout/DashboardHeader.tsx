@@ -1,5 +1,5 @@
 import { UserRound } from 'lucide-react'
-import { MonthSelector, type SelectedMonth } from '../controls/MonthSelector.tsx'
+import { MonthSelector, type SelectedMonth } from '../../../../components/MonthSelector.tsx'
 
 type DashboardHeaderProps = {
   selectedMonth: SelectedMonth
