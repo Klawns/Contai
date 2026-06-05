@@ -29,7 +29,9 @@ RUN set -eux; \
     '  index index.html;' \
     '' \
     '  location /api/ {' \
-    '    proxy_pass ${API_UPSTREAM};' \
+    '    resolver ${NGINX_LOCAL_RESOLVERS} valid=30s;' \
+    '    set $api_upstream ${API_UPSTREAM};' \
+    '    proxy_pass $api_upstream;' \
     '    proxy_http_version 1.1;' \
     '    proxy_set_header Host $host;' \
     '    proxy_set_header X-Real-IP $remote_addr;' \
