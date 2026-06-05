@@ -22,6 +22,12 @@ ENV PORT=80
 RUN set -eux; \
   mkdir -p /etc/nginx/templates; \
   printf '%s\n' \
+    '#!/bin/sh' \
+    'NGINX_RESOLVER="$(awk '\''/^nameserver / { printf "%s ", $2 }'\'' /etc/resolv.conf)"' \
+    'export NGINX_RESOLVER="${NGINX_RESOLVER:-127.0.0.11}"' \
+    > /docker-entrypoint.d/05-local-resolver.envsh; \
+  chmod +x /docker-entrypoint.d/05-local-resolver.envsh; \
+  printf '%s\n' \
     'server {' \
     '  listen ${PORT};' \
     '  server_name _;' \
@@ -29,7 +35,7 @@ RUN set -eux; \
     '  index index.html;' \
     '' \
     '  location /api/ {' \
-    '    resolver ${NGINX_LOCAL_RESOLVERS} valid=30s;' \
+    '    resolver ${NGINX_RESOLVER} valid=30s;' \
     '    set $api_upstream ${API_UPSTREAM};' \
     '    proxy_pass $api_upstream;' \
     '    proxy_http_version 1.1;' \
