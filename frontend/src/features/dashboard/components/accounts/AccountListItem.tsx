@@ -1,5 +1,6 @@
-import { Landmark, Plus, WalletCards } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
+import { BankIcon } from '../../../accounts/components/BankIcon.tsx'
 import type { AccountBalance } from '../../types/dashboard.ts'
 import { getBalanceTone } from '../../utils/balance.ts'
 import { formatCurrencyOrHidden } from '../../utils/formatters.ts'
@@ -15,7 +16,6 @@ export function AccountListItem({
 }: AccountListItemProps) {
   const shouldReduceMotion = useReducedMotion()
   const tone = getBalanceTone(account.balance)
-  const AccountIcon = account.type === 'wallet' ? WalletCards : Landmark
 
   return (
     <motion.article
@@ -23,9 +23,7 @@ export function AccountListItem({
       whileHover={shouldReduceMotion ? undefined : { x: 2 }}
       transition={{ duration: 0.16, ease: 'easeOut' }}
     >
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-[#f2eff8] text-[#6a22e5]">
-        <AccountIcon className="h-5 w-5" aria-hidden="true" />
-      </span>
+      <BankIcon bankIconId={account.bankIconId} size={40} />
       <div className="min-w-0">
         <strong className="block truncate text-[14px] font-semibold leading-tight text-[#241a30]">
           {account.name}
