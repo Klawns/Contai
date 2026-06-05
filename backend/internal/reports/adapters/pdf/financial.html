@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>{{ .Title }}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #18202f;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    header {
+      border-bottom: 2px solid #2563eb;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+    }
+    h1 {
+      font-size: 24px;
+      margin: 0 0 6px;
+    }
+    .muted { color: #667085; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .metric {
+      border: 1px solid #e4ebf3;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .metric strong {
+      display: block;
+      font-size: 15px;
+      margin-top: 4px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border-bottom: 1px solid #e4ebf3;
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: #475467;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .amount {
+      font-weight: 700;
+      text-align: right;
+      white-space: nowrap;
+    }
+    .income { color: #15803d; }
+    .expense { color: #b42318; }
+    .transfer { color: #2563eb; }
+    .empty {
+      border: 1px dashed #cbd5e1;
+      border-radius: 8px;
+      color: #667085;
+      padding: 18px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>{{ .Title }}</h1>
+    {{ if .Subtitle }}<div class="muted">{{ .Subtitle }}</div>{{ end }}
+    <div class="muted">Periodo: {{ formatDate .StartAt }} ate {{ formatDate .EndAt }}</div>
+    <div class="muted">Gerado em {{ formatDateTime .GeneratedAt }}</div>
+  </header>
+
+  <section class="summary">
+    <div class="metric">
+      <span class="muted">Receitas</span>
+      <strong class="income">{{ formatMoney .IncomeTotal }}</strong>
+    </div>
+    <div class="metric">
+      <span class="muted">Despesas</span>
+      <strong class="expense">{{ formatMoney .ExpenseTotal }}</strong>
+    </div>
+    <div class="metric">
+      <span class="muted">Transferencias</span>
+      <strong class="transfer">{{ formatMoney .TransferInTotal }}</strong>
+    </div>
+    <div class="metric">
+      <span class="muted">Saldo do periodo</span>
+      <strong>{{ formatMoney .NetTotal }}</strong>
+    </div>
+  </section>
+
+  {{ if .Transactions }}
+    <table>
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Tipo</th>
+          <th>Descricao</th>
+          <th>Conta</th>
+          <th class="amount">Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{ range .Transactions }}
+          <tr>
+            <td>{{ formatDate .OccurredAt }}</td>
+            <td class="{{ transactionTypeClass .Type }}">{{ transactionType .Type }}</td>
+            <td>{{ .Description }}</td>
+            <td>{{ .AccountName }}</td>
+            <td class="amount {{ transactionTypeClass .Type }}">{{ formatMoney .Amount }}</td>
+          </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  {{ else }}
+    <div class="empty">Nenhuma transacao encontrada no periodo.</div>
+  {{ end }}
+</body>
+</html>

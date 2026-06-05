@@ -20,6 +20,11 @@ import (
 	dashboardports "contai/internal/dashboard/app/ports"
 	dashboardservices "contai/internal/dashboard/app/services"
 	"contai/internal/database"
+	reporthttp "contai/internal/reports/adapters/http"
+	reportpdf "contai/internal/reports/adapters/pdf"
+	reportpersistence "contai/internal/reports/adapters/persistence"
+	reportports "contai/internal/reports/app/ports"
+	reportservices "contai/internal/reports/app/services"
 	transactionhttp "contai/internal/transactions/adapters/http"
 	transactionids "contai/internal/transactions/adapters/ids"
 	transactionpersistence "contai/internal/transactions/adapters/persistence"
@@ -45,6 +50,8 @@ type dependencies struct {
 	transactionHandler transactionhttp.Handler
 	dashboardService   dashboardports.DashboardService
 	dashboardHandler   dashboardhttp.Handler
+	reportService      reportports.ReportService
+	reportHandler      reporthttp.Handler
 }
 
 func newDependencies(cfg config) (dependencies, error) {
@@ -64,6 +71,7 @@ func newDependencies(cfg config) (dependencies, error) {
 	accountRepository := accountpersistence.NewAccountRepository(db)
 	transactionRepository := transactionpersistence.NewTransactionRepository(db)
 	dashboardRepository := dashboardpersistence.NewRepository(db)
+	reportRepository := reportpersistence.NewReportRepository(db)
 	unitOfWork := database.NewUnitOfWork(db)
 	userIDGenerator := ids.NewUUIDUserIDGenerator()
 	categoryIDGenerator := categoryids.NewUUIDCategoryIDGenerator()
@@ -75,6 +83,11 @@ func newDependencies(cfg config) (dependencies, error) {
 	accountService := accountservices.NewAccountService(accountRepository, accountIDGenerator, activeUserValidator)
 	transactionService := transactionservices.NewTransactionService(transactionRepository, accountRepository, categoryRepository, transactionIDGenerator, unitOfWork)
 	dashboardService := dashboardservices.NewDashboardService(dashboardRepository)
+	reportRenderer, err := reportpdf.NewRenderer()
+	if err != nil {
+		return dependencies{}, err
+	}
+	reportService := reportservices.NewReportService(reportRepository, reportRenderer)
 	defaultCategoryCreator := categoryservices.NewDefaultCategoryCreatorAdapter(categoryService)
 	userService := userservices.NewUserService(userRepository, userIDGenerator, passwordHasher, defaultCategoryCreator, unitOfWork)
 	jwtService := authjwt.NewService(cfg.jwtSecret, cfg.jwtAccessTTL)
@@ -94,5 +107,7 @@ func newDependencies(cfg config) (dependencies, error) {
 		transactionHandler: transactionhttp.NewHandler(transactionService),
 		dashboardService:   dashboardService,
 		dashboardHandler:   dashboardhttp.NewHandler(dashboardService),
+		reportService:      reportService,
+		reportHandler:      reporthttp.NewHandler(reportService),
 	}, nil
 }

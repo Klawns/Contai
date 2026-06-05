@@ -39,4 +39,9 @@ func registerRoutes(router *gin.Engine, dependencies dependencies) {
 	authenticated.DELETE("/transactions/:transactionID", dependencies.transactionHandler.DeleteTransaction)
 	authenticated.GET("/dashboard/monthly", dependencies.dashboardHandler.GetMonthlyDashboard)
 	authenticated.GET("/dashboard/monthly-series", dependencies.dashboardHandler.GetMonthlySeries)
+	authenticated.GET("/reports/accounts/pdf", dependencies.reportHandler.DownloadAccountsPDF)
+	authenticated.GET("/reports/transactions/pdf", dependencies.reportHandler.DownloadTransactionsPDF)
+	authenticated.GET("/reports/period/pdf", dependencies.reportHandler.DownloadPeriodPDF)
+	authenticated.GET("/reports/monthly/pdf", dependencies.reportHandler.DownloadMonthlyPDF)
+	authenticated.GET("/reports/account/:accountID/pdf", dependencies.reportHandler.DownloadAccountPDF)
 }

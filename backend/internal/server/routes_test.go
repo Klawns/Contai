@@ -123,3 +123,39 @@ func TestRegisterRoutesIncludesAuthenticatedDashboardRoutes(t *testing.T) {
 		t.Fatalf("expected dashboard route to require authentication, got %d", recorder.Code)
 	}
 }
+
+func TestRegisterRoutesIncludesAuthenticatedReportRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	registerRoutes(router, dependencies{})
+
+	routes := router.Routes()
+	expected := map[string]string{
+		http.MethodGet + " /api/reports/accounts/pdf":           "",
+		http.MethodGet + " /api/reports/transactions/pdf":       "",
+		http.MethodGet + " /api/reports/period/pdf":             "",
+		http.MethodGet + " /api/reports/monthly/pdf":            "",
+		http.MethodGet + " /api/reports/account/:accountID/pdf": "",
+	}
+
+	for _, route := range routes {
+		key := route.Method + " " + route.Path
+		if _, ok := expected[key]; ok {
+			delete(expected, key)
+		}
+	}
+
+	if len(expected) > 0 {
+		t.Fatalf("expected report routes to be registered, missing %#v", expected)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/reports/accounts/pdf", nil)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected report route to require authentication, got %d", recorder.Code)
+	}
+}

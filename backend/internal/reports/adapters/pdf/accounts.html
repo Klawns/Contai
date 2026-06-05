@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Relatorio de contas</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      line-height: 1.35;
+      background: #ffffff;
+    }
+
+    header {
+      border-bottom: 2px solid #172033;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .muted {
+      color: #647084;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .summary-item {
+      border: 1px solid #d7dce5;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .summary-label {
+      display: block;
+      color: #647084;
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .summary-value {
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      color: #465366;
+      font-size: 10px;
+      text-align: left;
+      text-transform: uppercase;
+      border-bottom: 1px solid #aeb7c6;
+      padding: 8px 6px;
+      white-space: nowrap;
+    }
+
+    td {
+      border-bottom: 1px solid #e2e6ee;
+      padding: 9px 6px;
+      vertical-align: top;
+    }
+
+    .money {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .empty {
+      border: 1px solid #d7dce5;
+      border-radius: 6px;
+      color: #647084;
+      padding: 18px;
+      text-align: center;
+    }
+
+    footer {
+      color: #647084;
+      font-size: 10px;
+      margin-top: 18px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Relatorio de contas</h1>
+    <div class="muted">Gerado em {{ formatDateTime .GeneratedAt }}</div>
+  </header>
+
+  <section class="summary">
+    <div class="summary-item">
+      <span class="summary-label">Contas</span>
+      <span class="summary-value">{{ len .Accounts }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Saldo total</span>
+      <span class="summary-value">{{ formatMoney .TotalBalance }}</span>
+    </div>
+    <div class="summary-item">
+      <span class="summary-label">Total no dashboard</span>
+      <span class="summary-value">{{ formatMoney .DashboardTotal }}</span>
+    </div>
+  </section>
+
+  {{ if .Accounts }}
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Tipo</th>
+        <th>Status</th>
+        <th class="money">Saldo inicial</th>
+        <th class="money">Saldo atual</th>
+        <th class="center">Dashboard</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{ range .Accounts }}
+      <tr>
+        <td>{{ .Name }}</td>
+        <td>{{ accountType .Type }}</td>
+        <td>{{ accountStatus .Status }}</td>
+        <td class="money">{{ formatMoney .InitialBalance }}</td>
+        <td class="money">{{ formatMoney .CurrentBalance }}</td>
+        <td class="center">{{ yesNo .IncludeInDashboardTotal }}</td>
+      </tr>
+      {{ end }}
+    </tbody>
+  </table>
+  {{ else }}
+  <div class="empty">Nenhuma conta encontrada.</div>
+  {{ end }}
+
+  <footer>Contai</footer>
+</body>
+</html>
