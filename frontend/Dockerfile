@@ -23,7 +23,7 @@ RUN set -eux; \
   mkdir -p /etc/nginx/templates; \
   printf '%s\n' \
     '#!/bin/sh' \
-    'NGINX_RESOLVER="$(awk '\''/^nameserver / { printf "%s ", $2 }'\'' /etc/resolv.conf)"' \
+    'NGINX_RESOLVER="$(awk '\''/^nameserver / { if ($2 ~ /:/) printf "[%s] ", $2; else printf "%s ", $2 }'\'' /etc/resolv.conf)"' \
     'export NGINX_RESOLVER="${NGINX_RESOLVER:-127.0.0.11}"' \
     > /docker-entrypoint.d/05-local-resolver.envsh; \
   chmod +x /docker-entrypoint.d/05-local-resolver.envsh; \
