@@ -60,7 +60,7 @@ func newDependencies(cfg config) (dependencies, error) {
 		return dependencies{}, err
 	}
 
-	if !isProduction() {
+	if cfg.autoMigrate {
 		if err := db.AutoMigrate(&persistence.UserEntity{}, &categorypersistence.CategoryEntity{}, &accountpersistence.AccountEntity{}, &transactionpersistence.TransactionEntity{}); err != nil {
 			return dependencies{}, err
 		}

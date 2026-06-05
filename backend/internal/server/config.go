@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ type config struct {
 	jwtSecret    string
 	jwtAccessTTL time.Duration
 	corsOrigins  []string
+	autoMigrate  bool
 }
 
 func loadConfig() (config, error) {
@@ -31,6 +33,7 @@ func loadConfig() (config, error) {
 		jwtSecret:    jwtSecret,
 		jwtAccessTTL: getJWTAccessTTL(),
 		corsOrigins:  getCORSAllowedOrigins(),
+		autoMigrate:  getDBAutoMigrate(),
 	}, nil
 }
 
@@ -86,6 +89,20 @@ func getCORSAllowedOrigins() []string {
 		"http://localhost:5173",
 		"http://127.0.0.1:5173",
 	}
+}
+
+func getDBAutoMigrate() bool {
+	value := strings.TrimSpace(os.Getenv("DB_AUTO_MIGRATE"))
+	if value == "" {
+		return !isProduction()
+	}
+
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return false
+	}
+
+	return enabled
 }
 
 func splitCommaSeparated(value string) []string {
