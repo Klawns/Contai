@@ -26,6 +26,10 @@ func NewServer() (*Server, error) {
 
 	router := gin.Default()
 	router.Use(securityHeaders(isProduction()))
+	router.Use(cors(cfg.corsOrigins))
+	router.OPTIONS("/*path", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
 	registerRoutes(router, deps)
 
 	return &Server{

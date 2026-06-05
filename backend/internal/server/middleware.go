@@ -8,6 +8,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	corsAllowMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+	corsAllowHeaders = "Accept, Content-Type, Authorization"
+)
+
 func securityHeaders(production bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Header("X-Content-Type-Options", "nosniff")
@@ -15,6 +20,32 @@ func securityHeaders(production bool) gin.HandlerFunc {
 		ctx.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		if production {
 			ctx.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+
+		ctx.Next()
+	}
+}
+
+func cors(allowedOrigins []string) gin.HandlerFunc {
+	origins := make(map[string]struct{}, len(allowedOrigins))
+	for _, origin := range allowedOrigins {
+		origins[origin] = struct{}{}
+	}
+
+	return func(ctx *gin.Context) {
+		origin := ctx.GetHeader("Origin")
+		if _, ok := origins[origin]; ok {
+			ctx.Header("Access-Control-Allow-Origin", origin)
+			ctx.Header("Access-Control-Allow-Credentials", "true")
+			ctx.Header("Access-Control-Allow-Methods", corsAllowMethods)
+			ctx.Header("Access-Control-Allow-Headers", corsAllowHeaders)
+			ctx.Header("Access-Control-Expose-Headers", "Content-Disposition")
+			ctx.Header("Vary", "Origin")
+		}
+
+		if ctx.Request.Method == http.MethodOptions {
+			ctx.AbortWithStatus(http.StatusNoContent)
+			return
 		}
 
 		ctx.Next()

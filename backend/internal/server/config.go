@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -13,6 +14,7 @@ type config struct {
 	databaseDSN  string
 	jwtSecret    string
 	jwtAccessTTL time.Duration
+	corsOrigins  []string
 }
 
 func loadConfig() (config, error) {
@@ -28,6 +30,7 @@ func loadConfig() (config, error) {
 		databaseDSN:  getDatabaseDSN(),
 		jwtSecret:    jwtSecret,
 		jwtAccessTTL: getJWTAccessTTL(),
+		corsOrigins:  getCORSAllowedOrigins(),
 	}, nil
 }
 
@@ -68,6 +71,42 @@ func getJWTAccessTTL() time.Duration {
 	}
 
 	return ttl
+}
+
+func getCORSAllowedOrigins() []string {
+	if value := os.Getenv("CORS_ALLOWED_ORIGINS"); value != "" {
+		return splitCommaSeparated(value)
+	}
+
+	if isProduction() {
+		return nil
+	}
+
+	return []string{
+		"http://localhost:5173",
+		"http://127.0.0.1:5173",
+	}
+}
+
+func splitCommaSeparated(value string) []string {
+	parts := strings.Split(value, ",")
+	values := make([]string, 0, len(parts))
+	seen := make(map[string]struct{}, len(parts))
+
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item == "" || item == "*" {
+			continue
+		}
+		if _, ok := seen[item]; ok {
+			continue
+		}
+
+		seen[item] = struct{}{}
+		values = append(values, item)
+	}
+
+	return values
 }
 
 func getDatabaseDSN() string {

@@ -73,3 +73,77 @@ func TestSecurityHeaders(t *testing.T) {
 		t.Fatal("expected HSTS header in production")
 	}
 }
+
+func TestCORSAllowsConfiguredOriginWithCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(cors([]string{"http://localhost:5173"}))
+	router.GET("/health", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
+	request.Header.Set("Origin", "http://localhost:5173")
+
+	router.ServeHTTP(recorder, request)
+
+	headers := recorder.Result().Header
+	if headers.Get("Access-Control-Allow-Origin") != "http://localhost:5173" {
+		t.Fatalf("expected allowed origin header, got %q", headers.Get("Access-Control-Allow-Origin"))
+	}
+	if headers.Get("Access-Control-Allow-Credentials") != "true" {
+		t.Fatalf("expected credentials header, got %q", headers.Get("Access-Control-Allow-Credentials"))
+	}
+	if headers.Get("Access-Control-Allow-Methods") != corsAllowMethods {
+		t.Fatalf("expected allow methods header, got %q", headers.Get("Access-Control-Allow-Methods"))
+	}
+	if headers.Get("Access-Control-Allow-Headers") != corsAllowHeaders {
+		t.Fatalf("expected allow headers header, got %q", headers.Get("Access-Control-Allow-Headers"))
+	}
+	if headers.Get("Access-Control-Expose-Headers") != "Content-Disposition" {
+		t.Fatalf("expected exposed headers, got %q", headers.Get("Access-Control-Expose-Headers"))
+	}
+}
+
+func TestCORSPreflightForAllowedOriginReturnsNoContent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(cors([]string{"http://127.0.0.1:5173"}))
+	router.OPTIONS("/api/auth/login", func(ctx *gin.Context) {
+		ctx.Status(http.StatusOK)
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodOptions, "/api/auth/login", nil)
+	request.Header.Set("Origin", "http://127.0.0.1:5173")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected preflight status 204, got %d", recorder.Code)
+	}
+	if recorder.Result().Header.Get("Access-Control-Allow-Origin") != "http://127.0.0.1:5173" {
+		t.Fatalf("expected allowed origin header, got %q", recorder.Result().Header.Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestCORSDoesNotAllowUnconfiguredOrigin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(cors([]string{"http://localhost:5173"}))
+	router.GET("/health", func(ctx *gin.Context) {
+		ctx.Status(http.StatusNoContent)
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
+	request.Header.Set("Origin", "http://evil.example")
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Result().Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Fatalf("expected no allowed origin header, got %q", recorder.Result().Header.Get("Access-Control-Allow-Origin"))
+	}
+}
