@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
+import { ConfirmDialogProvider } from '../components/ConfirmDialog'
 import { queryClient } from '../lib/query/query-client'
 
 type AppProvidersProps = {
@@ -7,5 +8,9 @@ type AppProvidersProps = {
 }
 
 export function AppProviders({ children }: AppProvidersProps) {
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+    </QueryClientProvider>
+  )
 }

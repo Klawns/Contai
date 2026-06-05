@@ -1,14 +1,34 @@
-export type AuthPath = '/' | '/login' | '/registro' | '/more'
+export type AuthPath =
+  | '/'
+  | '/login'
+  | '/registro'
+  | '/more'
+  | '/accounts'
+  | '/accounts/new'
+  | '/accounts/edit'
+  | '/transactions'
+  | '/transactions/edit'
+  | '/transactions/income/new'
+  | '/transactions/expense/new'
+  | '/transactions/transfer/new'
 
-const supportedPaths = new Set<string>(['/', '/login', '/registro', '/more'])
-export const navigationEventName = 'contai:navigation'
+export type NavigationPath = AuthPath | `${AuthPath}?${string}`
 
-export function getAuthPath(pathname = window.location.pathname): AuthPath {
+export const supportedPaths = new Set<string>([
+  '/',
+  '/login',
+  '/registro',
+  '/more',
+  '/accounts',
+  '/accounts/new',
+  '/accounts/edit',
+  '/transactions',
+  '/transactions/edit',
+  '/transactions/income/new',
+  '/transactions/expense/new',
+  '/transactions/transfer/new',
+])
+
+export function getAuthPath(pathname: string): AuthPath {
   return supportedPaths.has(pathname) ? (pathname as AuthPath) : '/'
-}
-
-export function navigateTo(path: AuthPath, options: { replace?: boolean } = {}) {
-  const method = options.replace ? 'replaceState' : 'pushState'
-  window.history[method](null, '', path)
-  window.dispatchEvent(new Event(navigationEventName))
 }

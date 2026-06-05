@@ -1,9 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AxiosError } from 'axios'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useRegister } from '../hooks/useRegister.ts'
 import { registerSchema } from '../schemas/auth.ts'
-import { navigateTo } from '../services/navigation.ts'
 import type { RegisterPayload } from '../types/auth.ts'
 import { AuthFormField } from './AuthFormField.tsx'
 import { AuthSubmitButton } from './AuthSubmitButton.tsx'
@@ -18,6 +18,7 @@ function getErrorMessage(error: unknown) {
 
 export function RegisterForm() {
   const registerMutation = useRegister()
+  const navigate = useNavigate()
   const {
     formState: { errors },
     handleSubmit,
@@ -33,7 +34,7 @@ export function RegisterForm() {
 
   const onSubmit = handleSubmit((payload) => {
     registerMutation.mutate(payload, {
-      onSuccess: () => navigateTo('/', { replace: true }),
+      onSuccess: () => navigate('/', { replace: true }),
     })
   })
 
@@ -71,13 +72,12 @@ export function RegisterForm() {
         Criar conta
       </AuthSubmitButton>
 
-      <button
-        type="button"
+      <Link
+        to="/login"
         className="cursor-pointer text-[13px] font-semibold text-[#6a22e5] hover:text-[#5a1ec2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff]"
-        onClick={() => navigateTo('/login')}
       >
         Ja tenho conta
-      </button>
+      </Link>
     </form>
   )
 }

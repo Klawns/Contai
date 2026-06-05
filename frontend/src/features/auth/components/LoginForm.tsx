@@ -1,10 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AxiosError } from 'axios'
+import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { loginSchema } from '../schemas/auth.ts'
 import type { LoginPayload } from '../types/auth.ts'
 import { useLogin } from '../hooks/useLogin.ts'
-import { navigateTo } from '../services/navigation.ts'
 import { AuthFormField } from './AuthFormField.tsx'
 import { AuthSubmitButton } from './AuthSubmitButton.tsx'
 
@@ -18,6 +18,7 @@ function getErrorMessage(error: unknown) {
 
 export function LoginForm() {
   const loginMutation = useLogin()
+  const navigate = useNavigate()
   const {
     formState: { errors },
     handleSubmit,
@@ -32,7 +33,7 @@ export function LoginForm() {
 
   const onSubmit = handleSubmit((payload) => {
     loginMutation.mutate(payload, {
-      onSuccess: () => navigateTo('/', { replace: true }),
+      onSuccess: () => navigate('/', { replace: true }),
     })
   })
 
@@ -63,13 +64,12 @@ export function LoginForm() {
         Entrar
       </AuthSubmitButton>
 
-      <button
-        type="button"
+      <Link
+        to="/registro"
         className="cursor-pointer text-[13px] font-semibold text-[#6a22e5] hover:text-[#5a1ec2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff]"
-        onClick={() => navigateTo('/registro')}
       >
         Criar conta
-      </button>
+      </Link>
     </form>
   )
 }

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@daypicker/react/style.css";
 
 :root {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -17,12 +18,15 @@
 html {
   min-width: 320px;
   background: #f4f7fb;
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   min-width: 320px;
   min-height: 100svh;
   margin: 0;
+  touch-action: pan-x pan-y;
 }
 
 button,
@@ -34,4 +38,110 @@ select {
 
 #root {
   min-height: 100svh;
+}
+
+.transaction-date-picker {
+  display: grid;
+  place-items: center;
+}
+
+.transaction-date-picker .rdp-root {
+  --rdp-accent-color: var(--date-accent);
+  --rdp-today-color: var(--date-accent);
+  display: grid;
+  width: fit-content;
+  margin: 0 auto;
+  color: #2c2237;
+  place-items: center;
+}
+
+.transaction-date-picker .rdp-months {
+  width: fit-content;
+  margin-inline: auto;
+  justify-content: center;
+}
+
+.transaction-date-picker .rdp-month,
+.transaction-date-picker .rdp-month_grid {
+  width: fit-content;
+  margin-inline: auto;
+}
+
+.transaction-date-picker .rdp-month_caption {
+  min-height: 44px;
+  padding: 0 44px;
+}
+
+.transaction-date-picker .rdp-caption_label {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.transaction-date-picker .rdp-nav {
+  top: 0;
+  right: 0;
+}
+
+.transaction-date-picker .rdp-button_previous,
+.transaction-date-picker .rdp-button_next {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: #6f647b;
+  cursor: pointer;
+}
+
+.transaction-date-picker .rdp-button_previous:hover,
+.transaction-date-picker .rdp-button_next:hover {
+  background: #f4f1f7;
+}
+
+.transaction-date-picker .rdp-weekday {
+  padding: 8px 0;
+  color: #81788c;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.transaction-date-picker .rdp-day {
+  padding: 3px;
+}
+
+.transaction-date-picker .rdp-day_button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  color: #2c2237;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.transaction-date-picker .rdp-day_button:hover {
+  background: #f4f1f7;
+}
+
+.transaction-date-picker .rdp-outside .rdp-day_button {
+  color: #b8b0c1;
+}
+
+.transaction-date-picker .rdp-today .rdp-day_button {
+  box-shadow: inset 0 0 0 2px var(--date-accent);
+  color: var(--date-accent);
+}
+
+.transaction-date-picker .rdp-selected .rdp-day_button {
+  background: var(--date-accent);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.transaction-date-picker .rdp-day_button:focus-visible,
+.transaction-date-picker .rdp-button_previous:focus-visible,
+.transaction-date-picker .rdp-button_next:focus-visible {
+  outline: 2px solid #7b2cff;
+  outline-offset: 2px;
 }

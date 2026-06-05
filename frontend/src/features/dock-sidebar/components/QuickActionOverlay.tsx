@@ -55,7 +55,13 @@ export function QuickActionOverlay({
             {actions.map((action, index) => (
               <QuickActionButton
                 key={action.label}
-                action={action}
+                action={{
+                  ...action,
+                  onSelect: () => {
+                    action.onSelect?.()
+                    onClose()
+                  },
+                }}
                 index={index}
                 className={index === 0 ? 'col-span-2' : ''}
               />
