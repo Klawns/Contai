@@ -168,8 +168,8 @@ export function AccountListPage() {
   }, [searchParams, setSearchParams])
 
   return (
-    <main className="min-h-svh w-full bg-[#6818e8] text-left" aria-label="Contas">
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-[#6818e8] shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[720px]">
+    <main className="min-h-svh w-full min-w-0 bg-[#6818e8] text-left" aria-label="Contas">
+      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-[#6818e8] shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none">
         <header className="bg-[#6818e8] px-5 pb-5 pt-[calc(18px+env(safe-area-inset-top))] text-white md:px-7 md:pt-6">
           <div className="mx-auto grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center">
             <button
@@ -197,7 +197,7 @@ export function AccountListPage() {
         </header>
 
         <div className="flex flex-1 flex-col rounded-t-[26px] bg-white px-5 pb-[calc(88px+env(safe-area-inset-bottom))] pt-4 md:px-7 md:pb-10">
-          <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-2.5">
+          <div className="flex w-full min-w-0 flex-1 flex-col gap-2.5">
             <section className="border-b border-[#f0ebf6] pb-4">
               <div className="min-w-0">
                 <CircleDollarSign className="h-5 w-5 text-[#1f9d63]" aria-hidden="true" />

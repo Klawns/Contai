@@ -30,6 +30,19 @@ export const accountBalanceSchema = z.object({
   bankIconId: z.string(),
 })
 
+export const creditCardDashboardSchema = z.object({
+  cardId: z.string(),
+  name: z.string(),
+  linkedAccountId: z.string(),
+  limitTotal: z.number().int(),
+  limitUsed: z.number().int(),
+  limitAvailable: z.number().int(),
+  currentInvoiceId: z.string().nullable(),
+  currentInvoiceAmount: z.number().int(),
+  currentInvoiceDueAt: rfc3339DateTimeSchema.nullable(),
+  currentInvoiceEffectiveStatus: z.string(),
+})
+
 export const expenseByCategorySchema = z.object({
   categoryId: z.string(),
   name: z.string(),
@@ -66,6 +79,7 @@ export const monthlyDashboardSchema = z.object({
   monthlyTransferOut: z.number().int(),
   monthlyNetBalance: z.number().int(),
   accountBalances: z.array(accountBalanceSchema),
+  creditCards: z.array(creditCardDashboardSchema),
   expensesByCategory: z.array(expenseByCategorySchema),
   recentTransactions: z.array(recentTransactionSchema),
 })

@@ -428,7 +428,7 @@ function SheetSubmitButton({
       <button
         type="button"
         disabled={isPending}
-        className="mx-auto block h-12 w-full max-w-[420px] cursor-pointer rounded-lg bg-[#281d35] px-4 text-[15px] font-semibold text-white shadow-[0_12px_24px_rgba(40,29,53,0.18)] transition-colors hover:bg-[#3a2a4a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff] disabled:cursor-not-allowed disabled:opacity-65"
+        className="mx-auto block h-12 w-full max-w-[420px] cursor-pointer rounded-lg bg-[#281d35] px-4 text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(40,29,53,0.10)] transition-colors hover:bg-[#3a2a4a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff] disabled:cursor-not-allowed disabled:opacity-65"
         onClick={onClick}
       >
         {isPending ? 'Gerando...' : 'Gerar PDF'}

@@ -1,4 +1,5 @@
 export { AccountListCard } from './accounts/AccountListCard.tsx'
+export { CreditCardListCard } from './credit-cards/CreditCardListCard.tsx'
 export { BalanceSummaryCard } from './balance-cards/BalanceSummaryCard.tsx'
 export { ChartCard } from './charts/ChartCard.tsx'
 export { DashboardChartsCarousel } from './charts/DashboardChartsCarousel.tsx'

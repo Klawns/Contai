@@ -117,6 +117,9 @@ function getTransactionOriginLabel(transaction: Transaction) {
   if (transaction.originType === 'receivable') {
     return 'Gerada por conta a receber'
   }
+  if (transaction.originType === 'credit_card_invoice') {
+    return 'Gerada por fatura de cartao'
+  }
   return null
 }
 
@@ -456,7 +459,7 @@ export function TransactionListPage() {
 
   return (
     <TransactionsPageLayout animationKey={formatMonthQuery(selectedMonth)}>
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-[#6818e8] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[720px]">
+      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-[#6818e8] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none">
         <header className="bg-[#6818e8] px-5 pb-5 pt-[calc(18px+env(safe-area-inset-top))] text-white md:px-7 md:pt-6">
           <div className="mx-auto grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center">
             <button
@@ -503,7 +506,7 @@ export function TransactionListPage() {
           key={formatMonthQuery(selectedMonth)}
           className="flex flex-1 flex-col rounded-t-[26px] bg-white px-5 pb-[calc(88px+env(safe-area-inset-bottom))] pt-4 md:px-7 md:pb-10"
         >
-          <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col gap-2.5">
+          <div className="flex w-full min-w-0 flex-1 flex-col gap-2.5">
             {transactionsQuery.isLoading ? (
               <TransactionStateMessage>Carregando transacoes...</TransactionStateMessage>
             ) : null}
@@ -557,7 +560,7 @@ export function TransactionEditPage() {
   if (!transactionId) {
     return (
       <TransactionsPageLayout variant="create" tone="expense" animationKey="edit-missing">
-        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[640px] md:px-8">
+        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:px-8 md:shadow-none">
           <button
             type="button"
             className="self-start text-[14px] font-semibold text-[#6818e8] transition-colors hover:text-[#4d12b0] focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#6818e8]"
@@ -576,7 +579,7 @@ export function TransactionEditPage() {
   if (transactionsQuery.isLoading) {
     return (
       <TransactionsPageLayout variant="create" tone="expense" animationKey="edit-loading">
-        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[640px] md:px-8">
+        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:px-8 md:shadow-none">
           <TransactionStateMessage>Carregando transacao...</TransactionStateMessage>
         </section>
       </TransactionsPageLayout>
@@ -586,7 +589,7 @@ export function TransactionEditPage() {
   if (transactionsQuery.isError) {
     return (
       <TransactionsPageLayout variant="create" tone="expense" animationKey="edit-error">
-        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[640px] md:px-8">
+        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:px-8 md:shadow-none">
           <button
             type="button"
             className="self-start text-[14px] font-semibold text-[#6818e8] transition-colors hover:text-[#4d12b0] focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#6818e8]"
@@ -605,7 +608,7 @@ export function TransactionEditPage() {
   if (!transaction) {
     return (
       <TransactionsPageLayout variant="create" tone="expense" animationKey="edit-not-found">
-        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[640px] md:px-8">
+        <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:px-8 md:shadow-none">
           <button
             type="button"
             className="self-start text-[14px] font-semibold text-[#6818e8] transition-colors hover:text-[#4d12b0] focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#6818e8]"

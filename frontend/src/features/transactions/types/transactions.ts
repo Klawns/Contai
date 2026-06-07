@@ -1,6 +1,6 @@
 export const transactionTypes = ['income', 'expense', 'transfer'] as const
 export const categoryTransactionTypes = ['income', 'expense'] as const
-export const transactionOriginTypes = ['manual', 'payable', 'receivable'] as const
+export const transactionOriginTypes = ['manual', 'payable', 'receivable', 'credit_card_invoice'] as const
 
 export type TransactionType = (typeof transactionTypes)[number]
 export type CategoryTransactionType = (typeof categoryTransactionTypes)[number]

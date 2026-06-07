@@ -40,8 +40,8 @@ export function TransactionsPageLayout({
       <div
         className={
           isCreateVariant
-            ? 'grid min-h-svh w-full'
-            : 'mx-auto grid min-h-svh w-full'
+            ? 'grid min-h-svh w-full min-w-0'
+            : 'grid min-h-svh w-full min-w-0'
         }
       >
         {children}

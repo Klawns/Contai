@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   CalendarDays,
+  CreditCard,
   Ellipsis,
   House,
   ReceiptText,
@@ -59,6 +60,7 @@ const baseNavigationItems: NavigationItem[] = [
     ],
   },
   { label: 'Mais', icon: Ellipsis, path: '/more' },
+  { label: 'Cartoes', icon: CreditCard, path: '/credit-cards' },
 ]
 
 export function getNavigationItems(
@@ -70,7 +72,8 @@ export function getNavigationItems(
     active:
       item.path === currentPath ||
       (item.path === '/transactions' && currentPath.startsWith('/transactions')) ||
-      (item.path === '/planning' && currentPath.startsWith('/planning')),
+      (item.path === '/planning' && currentPath.startsWith('/planning')) ||
+      (item.path === '/credit-cards' && currentPath.startsWith('/credit-cards')),
     onSelect: item.path ? () => navigate(item.path!) : undefined,
     children: item.children?.map((child) => ({
       ...child,

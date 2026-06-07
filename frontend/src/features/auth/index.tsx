@@ -41,6 +41,24 @@ const CommitmentFormPage = lazy(() =>
 const SettlementPage = lazy(() =>
   import('../commitments').then((module) => ({ default: module.SettlementPage })),
 )
+const CreditCardListPage = lazy(() =>
+  import('../credit-cards').then((module) => ({ default: module.CreditCardListPage })),
+)
+const CreditCardFormPage = lazy(() =>
+  import('../credit-cards').then((module) => ({ default: module.CreditCardFormPage })),
+)
+const CardPurchasePage = lazy(() =>
+  import('../credit-cards').then((module) => ({ default: module.CardPurchasePage })),
+)
+const CardInvoicesPage = lazy(() =>
+  import('../credit-cards').then((module) => ({ default: module.CardInvoicesPage })),
+)
+const CardInvoiceDetailPage = lazy(() =>
+  import('../credit-cards').then((module) => ({ default: module.CardInvoiceDetailPage })),
+)
+const PayCardInvoicePage = lazy(() =>
+  import('../credit-cards').then((module) => ({ default: module.PayCardInvoicePage })),
+)
 
 function AuthLoading() {
   return (
@@ -170,6 +188,13 @@ export function AuthGate() {
             <Route path="/planning/receivables/new" element={<CommitmentFormPage type="receivable" />} />
             <Route path="/planning/edit" element={<CommitmentEditRoute />} />
             <Route path="/planning/settle" element={<SettlementPage />} />
+            <Route path="/credit-cards" element={<CreditCardListPage />} />
+            <Route path="/credit-cards/new" element={<CreditCardFormPage />} />
+            <Route path="/credit-cards/edit" element={<CreditCardFormPage mode="edit" />} />
+            <Route path="/credit-cards/purchase" element={<CardPurchasePage />} />
+            <Route path="/credit-cards/invoices" element={<CardInvoicesPage />} />
+            <Route path="/credit-cards/invoice" element={<CardInvoiceDetailPage />} />
+            <Route path="/credit-cards/invoice/pay" element={<PayCardInvoicePage />} />
           </Route>
         </Route>
 

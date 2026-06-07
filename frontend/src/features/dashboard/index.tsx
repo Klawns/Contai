@@ -6,6 +6,7 @@ import type { ProfileAction } from '../auth/components/ProfileActionsDropdown.ts
 import {
   AccountListCard,
   BalanceSummaryCard,
+  CreditCardListCard,
   DashboardChartsCarousel,
   DashboardLayout,
   DashboardSection,
@@ -173,6 +174,14 @@ export function Dashboard({ user, isLoggingOut, onLogout }: DashboardProps) {
 
       <DashboardSection title="Contas">
         <AccountListCard
+          accounts={monthlyDashboard.accountBalances}
+          isBalanceHidden={isMainBalanceHidden}
+        />
+      </DashboardSection>
+
+      <DashboardSection title="Cartoes">
+        <CreditCardListCard
+          cards={monthlyDashboard.creditCards}
           accounts={monthlyDashboard.accountBalances}
           isBalanceHidden={isMainBalanceHidden}
         />

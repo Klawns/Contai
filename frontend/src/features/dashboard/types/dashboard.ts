@@ -8,6 +8,7 @@ export type MonthlyDashboard = {
   monthlyTransferOut: number
   monthlyNetBalance: number
   accountBalances: AccountBalance[]
+  creditCards: CreditCardDashboard[]
   expensesByCategory: ExpenseByCategory[]
   recentTransactions: RecentTransaction[]
 }
@@ -23,6 +24,19 @@ export type AccountBalance = {
   type: string
   balance: number
   bankIconId: string
+}
+
+export type CreditCardDashboard = {
+  cardId: string
+  name: string
+  linkedAccountId: string
+  limitTotal: number
+  limitUsed: number
+  limitAvailable: number
+  currentInvoiceId: string | null
+  currentInvoiceAmount: number
+  currentInvoiceDueAt: string | null
+  currentInvoiceEffectiveStatus: string
 }
 
 export type ExpenseByCategory = {

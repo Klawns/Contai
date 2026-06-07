@@ -1,4 +1,4 @@
-import { ChevronDown, FileText, Landmark } from 'lucide-react'
+import { ChevronDown, CreditCard, FileText, Landmark } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -35,6 +35,16 @@ export function MorePage() {
               <Landmark className="h-[21px] w-[21px]" aria-hidden="true" />
             </span>
             <span className="truncate text-[15px] font-medium text-[#1f2937]">Contas</span>
+          </Link>
+
+          <Link
+            to="/credit-cards"
+            className="grid min-h-[54px] w-full cursor-pointer grid-cols-[32px_minmax(0,1fr)] items-center gap-3 border-b border-[#edf1f6] px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[#2563eb] md:px-8 lg:px-10"
+          >
+            <span className="grid h-8 w-8 place-items-center text-[#1f2937]">
+              <CreditCard className="h-[21px] w-[21px]" aria-hidden="true" />
+            </span>
+            <span className="truncate text-[15px] font-medium text-[#1f2937]">Cartoes</span>
           </Link>
 
           <button

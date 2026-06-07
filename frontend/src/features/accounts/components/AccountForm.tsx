@@ -195,7 +195,7 @@ export function AccountForm({ mode, account }: AccountFormProps) {
           <button
             type="submit"
             disabled={isPending}
-            className="mx-auto flex h-12 w-full max-w-[300px] cursor-pointer items-center justify-center rounded-full bg-[#6818e8] px-6 text-[15px] font-semibold text-white shadow-[0_14px_28px_rgba(104,24,232,0.22)] transition-colors hover:bg-[#5712c9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff] disabled:cursor-not-allowed disabled:opacity-65"
+            className="mx-auto flex h-12 w-full max-w-[300px] cursor-pointer items-center justify-center rounded-full bg-[#6818e8] px-6 text-[15px] font-semibold text-white shadow-[0_6px_14px_rgba(104,24,232,0.12)] transition-colors hover:bg-[#5712c9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff] disabled:cursor-not-allowed disabled:opacity-65"
           >
             {isPending ? 'Salvando...' : isEditing ? 'Salvar alteracoes' : 'Cadastrar conta'}
           </button>

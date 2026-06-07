@@ -218,7 +218,7 @@ export function TransactionForm({
   return (
     <>
       <form
-        className="mx-auto min-h-svh w-full max-w-[520px] bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:max-w-[640px]"
+        className="mx-auto min-h-svh w-full max-w-[520px] bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
         onSubmit={handleSubmit((values) => {
           const base = {
             description: values.description.trim(),
