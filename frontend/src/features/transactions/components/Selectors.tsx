@@ -36,7 +36,7 @@ type SelectorButtonProps = {
   onClick: () => void
 }
 
-function SelectorButton({
+function TransactionSelectTrigger({
   label,
   valueLabel,
   error,
@@ -65,6 +65,142 @@ function SelectorButton({
         <ChevronRight className="h-4 w-4 flex-none text-[#9a91a5]" aria-hidden="true" />
       </button>
     </TransactionFieldRow>
+  )
+}
+
+export type TransactionSelectOption<TValue extends string = string, TItem = unknown> = {
+  value: TValue
+  label: string
+  description?: string
+  item?: TItem
+}
+
+type TransactionSelectFieldProps<TValue extends string = string, TItem = unknown> = {
+  label: string
+  value: TValue | ''
+  placeholder: string
+  icon: ReactNode
+  options: Array<TransactionSelectOption<TValue, TItem>>
+  onChange: (value: TValue) => void
+  error?: string
+  sheetTitle?: string
+  chipClassName?: string
+  chipStyle?: CSSProperties
+  loadingMessage?: string
+  isLoading?: boolean
+  errorMessage?: string
+  isError?: boolean
+  emptyMessage?: string
+  beforeOptions?: (close: () => void) => ReactNode
+  renderOption?: (params: {
+    option: TransactionSelectOption<TValue, TItem>
+    isSelected: boolean
+    onSelect: () => void
+  }) => ReactNode
+}
+
+export function TransactionSelectField<TValue extends string = string, TItem = unknown>({
+  label,
+  value,
+  placeholder,
+  icon,
+  options,
+  onChange,
+  error,
+  sheetTitle = label,
+  chipClassName,
+  chipStyle,
+  loadingMessage = 'Carregando...',
+  isLoading = false,
+  errorMessage = 'Nao foi possivel carregar as opcoes.',
+  isError = false,
+  emptyMessage = 'Nenhuma opcao disponivel.',
+  beforeOptions,
+  renderOption,
+}: TransactionSelectFieldProps<TValue, TItem>) {
+  const [isOpen, setIsOpen] = useState(false)
+  const selected = options.find((option) => option.value === value)
+  const close = () => setIsOpen(false)
+
+  function handleSelect(nextValue: TValue) {
+    onChange(nextValue)
+    close()
+  }
+
+  return (
+    <>
+      <TransactionSelectTrigger
+        label={label}
+        valueLabel={selected?.label ?? placeholder}
+        error={error}
+        icon={icon}
+        chipClassName={chipClassName}
+        chipStyle={chipStyle}
+        onClick={() => setIsOpen(true)}
+      />
+      <SelectionSheet title={sheetTitle} isOpen={isOpen} onClose={close}>
+        <div className="grid gap-2">
+          {beforeOptions ? beforeOptions(close) : null}
+          {isLoading ? (
+            <p className="px-1 py-2 text-[14px] font-medium text-[#81788c]">{loadingMessage}</p>
+          ) : null}
+          {isError ? (
+            <p className="px-1 py-2 text-[14px] font-medium text-[#b93838]">
+              {errorMessage}
+            </p>
+          ) : null}
+          {!isLoading && !isError && options.length === 0 ? (
+            <p className="px-1 py-2 text-[14px] font-medium text-[#81788c]">{emptyMessage}</p>
+          ) : null}
+          {options.map((option) => {
+            const isSelected = option.value === value
+            const onSelect = () => handleSelect(option.value)
+
+            return renderOption ? (
+              <div key={option.value}>{renderOption({ option, isSelected, onSelect })}</div>
+            ) : (
+              <DefaultSelectOption
+                key={option.value}
+                option={option}
+                isSelected={isSelected}
+                onSelect={onSelect}
+              />
+            )
+          })}
+        </div>
+      </SelectionSheet>
+    </>
+  )
+}
+
+function DefaultSelectOption<TValue extends string, TItem>({
+  option,
+  isSelected,
+  onSelect,
+}: {
+  option: TransactionSelectOption<TValue, TItem>
+  isSelected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className={`flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff] ${
+        isSelected ? 'border-[#7b2cff] bg-[#f7f2ff]' : 'border-[#eee8f3] bg-white hover:bg-[#fbf9fe]'
+      }`}
+      onClick={onSelect}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-semibold text-[#2c2237]">
+          {option.label}
+        </span>
+        {option.description ? (
+          <span className="block truncate text-[12px] font-medium text-[#81788c]">
+            {option.description}
+          </span>
+        ) : null}
+      </span>
+    </button>
   )
 }
 
@@ -106,44 +242,40 @@ type AccountSelectorProps = {
 }
 
 export function AccountSelector({ label, value, error, onChange }: AccountSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false)
   const accountsQuery = useActiveAccounts()
-  const selected = accountsQuery.data?.find((account) => account.id === value)
+  const options = useMemo(
+    () =>
+      (accountsQuery.data ?? []).map((account) => ({
+        value: account.id,
+        label: account.name,
+        description: formatCurrency(account.currentBalance),
+        item: account,
+      })),
+    [accountsQuery.data],
+  )
+  const selected = options.find((option) => option.value === value)
 
   return (
-    <>
-      <SelectorButton
-        label={label}
-        valueLabel={selected?.name ?? 'Selecione uma conta'}
-        error={error}
-        icon={<Landmark className="h-5 w-5" aria-hidden="true" />}
-        chipClassName={selected ? 'bg-[#eef6ff] text-[#216fb8]' : undefined}
-        onClick={() => setIsOpen(true)}
-      />
-      <SelectionSheet title={label} isOpen={isOpen} onClose={() => setIsOpen(false)}>
-        <div className="grid gap-2">
-          {accountsQuery.isLoading ? (
-            <p className="px-1 py-2 text-[14px] font-medium text-[#81788c]">Carregando contas...</p>
-          ) : null}
-          {accountsQuery.isError ? (
-            <p className="px-1 py-2 text-[14px] font-medium text-[#b93838]">
-              Nao foi possivel carregar as contas.
-            </p>
-          ) : null}
-          {(accountsQuery.data ?? []).map((account) => (
-            <AccountOption
-              key={account.id}
-              account={account}
-              isSelected={account.id === value}
-              onSelect={() => {
-                onChange(account.id)
-                setIsOpen(false)
-              }}
-            />
-          ))}
-        </div>
-      </SelectionSheet>
-    </>
+    <TransactionSelectField
+      label={label}
+      value={value}
+      placeholder="Selecione uma conta"
+      error={error}
+      icon={<Landmark className="h-5 w-5" aria-hidden="true" />}
+      options={options}
+      onChange={onChange}
+      chipClassName={selected ? 'bg-[#eef6ff] text-[#216fb8]' : undefined}
+      isLoading={accountsQuery.isLoading}
+      loadingMessage="Carregando contas..."
+      isError={accountsQuery.isError}
+      errorMessage="Nao foi possivel carregar as contas."
+      emptyMessage="Nenhuma conta disponivel."
+      renderOption={({ option, isSelected, onSelect }) => (
+        option.item ? (
+          <AccountOption account={option.item} isSelected={isSelected} onSelect={onSelect} />
+        ) : null
+      )}
+    />
   )
 }
 
@@ -210,56 +342,48 @@ export function CategorySelector({
   onChange,
   onAddCategory,
 }: CategorySelectorProps) {
-  const [isOpen, setIsOpen] = useState(false)
   const categoriesQuery = useActiveCategories(type)
-  const selected = useMemo(
-    () => categoriesQuery.data?.find((category) => category.id === value),
-    [categoriesQuery.data, value],
+  const options = useMemo(
+    () =>
+      (categoriesQuery.data ?? []).map((category) => ({
+        value: category.id,
+        label: category.name,
+        item: category,
+      })),
+    [categoriesQuery.data],
   )
+  const selected = options.find((option) => option.value === value)
 
   return (
-    <>
-      <SelectorButton
-        label="Categoria"
-        valueLabel={selected?.name ?? 'Selecione uma categoria'}
-        error={error}
-        icon={<Tag className="h-5 w-5" aria-hidden="true" />}
-        chipClassName={selected ? 'text-white' : undefined}
-        chipStyle={selected ? { backgroundColor: selected.color } : undefined}
-        onClick={() => setIsOpen(true)}
-      />
-      <SelectionSheet title="Categoria" isOpen={isOpen} onClose={() => setIsOpen(false)}>
-        <div className="grid gap-2">
-          <AddCategoryButton
-            onClick={() => {
-              setIsOpen(false)
-              onAddCategory()
-            }}
-          />
-          {categoriesQuery.isLoading ? (
-            <p className="px-1 py-2 text-[14px] font-medium text-[#81788c]">
-              Carregando categorias...
-            </p>
-          ) : null}
-          {categoriesQuery.isError ? (
-            <p className="px-1 py-2 text-[14px] font-medium text-[#b93838]">
-              Nao foi possivel carregar as categorias.
-            </p>
-          ) : null}
-          {(categoriesQuery.data ?? []).map((category) => (
-            <CategoryOption
-              key={category.id}
-              category={category}
-              isSelected={category.id === value}
-              onSelect={() => {
-                onChange(category.id)
-                setIsOpen(false)
-              }}
-            />
-          ))}
-        </div>
-      </SelectionSheet>
-    </>
+    <TransactionSelectField
+      label="Categoria"
+      value={value}
+      placeholder="Selecione uma categoria"
+      error={error}
+      icon={<Tag className="h-5 w-5" aria-hidden="true" />}
+      options={options}
+      onChange={onChange}
+      chipClassName={selected ? 'text-white' : undefined}
+      chipStyle={selected?.item ? { backgroundColor: selected.item.color } : undefined}
+      isLoading={categoriesQuery.isLoading}
+      loadingMessage="Carregando categorias..."
+      isError={categoriesQuery.isError}
+      errorMessage="Nao foi possivel carregar as categorias."
+      emptyMessage="Nenhuma categoria disponivel."
+      beforeOptions={(close) => (
+        <AddCategoryButton
+          onClick={() => {
+            close()
+            onAddCategory()
+          }}
+        />
+      )}
+      renderOption={({ option, isSelected, onSelect }) => (
+        option.item ? (
+          <CategoryOption category={option.item} isSelected={isSelected} onSelect={onSelect} />
+        ) : null
+      )}
+    />
   )
 }
 

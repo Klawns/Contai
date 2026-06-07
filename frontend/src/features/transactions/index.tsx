@@ -110,6 +110,16 @@ function getTransactionTone(transaction: Transaction) {
   return 'bg-[#eef6ff] text-[#216fb8]'
 }
 
+function getTransactionOriginLabel(transaction: Transaction) {
+  if (transaction.originType === 'payable') {
+    return 'Gerada por conta a pagar'
+  }
+  if (transaction.originType === 'receivable') {
+    return 'Gerada por conta a receber'
+  }
+  return null
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
@@ -248,6 +258,19 @@ function TransactionActionsMenu({ transaction }: { transaction: Transaction }) {
   const navigate = useNavigate()
   const { confirm } = useConfirmDialog()
   const deleteTransactionMutation = useDeleteTransaction()
+  const isManaged = transaction.originType !== 'manual'
+
+  if (isManaged) {
+    return (
+      <span
+        className="grid h-8 w-8 place-items-center rounded-full text-[#b2a9bd]"
+        title="Transacao gerenciada"
+        aria-label="Transacao gerenciada"
+      >
+        <CalendarDays className="h-4 w-4" aria-hidden="true" />
+      </span>
+    )
+  }
 
   function handleEditTransaction() {
     navigate(`/transactions/edit?transactionId=${encodeURIComponent(transaction.id)}`)
@@ -330,6 +353,7 @@ function TransactionList({ transactions, accountNames, categoryNames }: Transact
               ? [source?.name, destination?.name].filter(Boolean).join(' -> ')
               : [account?.name, category?.name].filter(Boolean).join(' / ')
           const signedAmount = getSignedAmount(transaction)
+          const originLabel = getTransactionOriginLabel(transaction)
 
           return (
             <li
@@ -353,6 +377,12 @@ function TransactionList({ transactions, accountNames, categoryNames }: Transact
                   )}
                   <span className="truncate">{details || formatDate(transaction.occurredAt)}</span>
                 </p>
+                {originLabel ? (
+                  <p className="mt-1 flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-tight text-[#958c9f]">
+                    <CalendarDays className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
+                    <span className="truncate">{originLabel}</span>
+                  </p>
+                ) : null}
               </div>
               <div className="min-w-0 text-right">
                 <strong

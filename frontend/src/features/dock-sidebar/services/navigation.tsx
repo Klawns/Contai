@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Ellipsis,
   House,
+  ReceiptText,
   TrendingDown,
   TrendingUp,
   type LucideIcon,
@@ -47,7 +48,16 @@ const baseNavigationItems: NavigationItem[] = [
       { label: 'Transferencia', path: '/transactions/transfer/new' },
     ],
   },
-  { label: 'Planejamento', icon: CalendarDays },
+  {
+    label: 'Planejamento',
+    icon: CalendarDays,
+    path: '/planning',
+    children: [
+      { label: 'Geral', path: '/planning' },
+      { label: 'Conta a pagar', path: '/planning/payables/new' },
+      { label: 'Conta a receber', path: '/planning/receivables/new' },
+    ],
+  },
   { label: 'Mais', icon: Ellipsis, path: '/more' },
 ]
 
@@ -59,7 +69,8 @@ export function getNavigationItems(
     ...item,
     active:
       item.path === currentPath ||
-      (item.path === '/transactions' && currentPath.startsWith('/transactions')),
+      (item.path === '/transactions' && currentPath.startsWith('/transactions')) ||
+      (item.path === '/planning' && currentPath.startsWith('/planning')),
     onSelect: item.path ? () => navigate(item.path!) : undefined,
     children: item.children?.map((child) => ({
       ...child,
@@ -88,6 +99,18 @@ export function getQuickActions(navigate: (path: AuthPath) => void): QuickAction
       icon: TrendingDown,
       color: '#ef4771',
       onSelect: () => navigate('/transactions/expense/new'),
+    },
+    {
+      label: 'Conta a pagar',
+      icon: ReceiptText,
+      color: '#d93658',
+      onSelect: () => navigate('/planning/payables/new'),
+    },
+    {
+      label: 'Conta a receber',
+      icon: CalendarDays,
+      color: '#159c57',
+      onSelect: () => navigate('/planning/receivables/new'),
     },
   ]
 }

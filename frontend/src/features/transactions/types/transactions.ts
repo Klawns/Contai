@@ -1,8 +1,10 @@
 export const transactionTypes = ['income', 'expense', 'transfer'] as const
 export const categoryTransactionTypes = ['income', 'expense'] as const
+export const transactionOriginTypes = ['manual', 'payable', 'receivable'] as const
 
 export type TransactionType = (typeof transactionTypes)[number]
 export type CategoryTransactionType = (typeof categoryTransactionTypes)[number]
+export type TransactionOriginType = (typeof transactionOriginTypes)[number]
 
 export type Transaction = {
   id: string
@@ -16,6 +18,8 @@ export type Transaction = {
   destinationAccountId: string | null
   categoryId: string | null
   status: string
+  originType: TransactionOriginType
+  originId: string | null
   note: string
   removedAt: string | null
   createdAt: string

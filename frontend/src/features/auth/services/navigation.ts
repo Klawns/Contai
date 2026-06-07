@@ -11,6 +11,11 @@ export type AuthPath =
   | '/transactions/income/new'
   | '/transactions/expense/new'
   | '/transactions/transfer/new'
+  | '/planning'
+  | '/planning/payables/new'
+  | '/planning/receivables/new'
+  | '/planning/edit'
+  | '/planning/settle'
 
 export type NavigationPath = AuthPath | `${AuthPath}?${string}`
 
@@ -27,6 +32,11 @@ export const supportedPaths = new Set<string>([
   '/transactions/income/new',
   '/transactions/expense/new',
   '/transactions/transfer/new',
+  '/planning',
+  '/planning/payables/new',
+  '/planning/receivables/new',
+  '/planning/edit',
+  '/planning/settle',
 ])
 
 export function getAuthPath(pathname: string): AuthPath {

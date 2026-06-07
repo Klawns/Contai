@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import {
   categoryTransactionTypes,
+  transactionOriginTypes,
   transactionTypes,
   type CategoryTransactionType,
 } from '../types/transactions.ts'
@@ -16,6 +17,7 @@ export const rfc3339DateTimeSchema = z
   })
 
 export const transactionTypeSchema = z.enum(transactionTypes)
+export const transactionOriginTypeSchema = z.enum(transactionOriginTypes)
 export const categoryTransactionTypeSchema = z.enum(categoryTransactionTypes)
 
 export const transactionFiltersSchema = z
@@ -49,6 +51,8 @@ export const transactionSchema = z.object({
   destinationAccountId: z.string().nullable(),
   categoryId: z.string().nullable(),
   status: z.string(),
+  originType: transactionOriginTypeSchema.default('manual'),
+  originId: z.string().nullable().default(null),
   note: z.string(),
   removedAt: rfc3339DateTimeSchema.nullable(),
   createdAt: rfc3339DateTimeSchema,
