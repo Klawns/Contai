@@ -18,6 +18,7 @@ type monthlyDashboardResponse struct {
 	MonthlyTransferOut int64                       `json:"monthlyTransferOut"`
 	MonthlyNetBalance  int64                       `json:"monthlyNetBalance"`
 	AccountBalances    []accountBalanceResponse    `json:"accountBalances"`
+	CreditCards        []creditCardResponse        `json:"creditCards"`
 	ExpensesByCategory []expenseByCategoryResponse `json:"expensesByCategory"`
 	RecentTransactions []recentTransactionResponse `json:"recentTransactions"`
 }
@@ -47,6 +48,19 @@ type accountBalanceResponse struct {
 	Type       string `json:"type"`
 	Balance    int64  `json:"balance"`
 	BankIconID string `json:"bankIconId"`
+}
+
+type creditCardResponse struct {
+	CardID                        string  `json:"cardId"`
+	Name                          string  `json:"name"`
+	LinkedAccountID               string  `json:"linkedAccountId"`
+	LimitTotal                    int64   `json:"limitTotal"`
+	LimitUsed                     int64   `json:"limitUsed"`
+	LimitAvailable                int64   `json:"limitAvailable"`
+	CurrentInvoiceID              *string `json:"currentInvoiceId"`
+	CurrentInvoiceAmount          int64   `json:"currentInvoiceAmount"`
+	CurrentInvoiceDueAt           *string `json:"currentInvoiceDueAt"`
+	CurrentInvoiceEffectiveStatus string  `json:"currentInvoiceEffectiveStatus"`
 }
 
 type expenseByCategoryResponse struct {
@@ -114,9 +128,29 @@ func toMonthlyDashboardResponse(dashboard ports.MonthlyDashboardDTO) monthlyDash
 		MonthlyTransferOut: dashboard.MonthlyTransferOut.Cents(),
 		MonthlyNetBalance:  dashboard.MonthlyNetBalance.Cents(),
 		AccountBalances:    toAccountBalanceResponses(dashboard.AccountBalances),
+		CreditCards:        toCreditCardResponses(dashboard.CreditCards),
 		ExpensesByCategory: toExpenseByCategoryResponses(dashboard.ExpensesByCategory),
 		RecentTransactions: toRecentTransactionResponses(dashboard.RecentTransactions),
 	}
+}
+
+func toCreditCardResponses(values []ports.CreditCardDashboardDTO) []creditCardResponse {
+	responses := make([]creditCardResponse, 0, len(values))
+	for _, value := range values {
+		responses = append(responses, creditCardResponse{
+			CardID:                        string(value.CardID),
+			Name:                          value.Name,
+			LinkedAccountID:               string(value.LinkedAccountID),
+			LimitTotal:                    value.LimitTotal.Cents(),
+			LimitUsed:                     value.LimitUsed.Cents(),
+			LimitAvailable:                value.LimitAvailable.Cents(),
+			CurrentInvoiceID:              stringPtr(value.CurrentInvoiceID),
+			CurrentInvoiceAmount:          value.CurrentInvoiceAmount.Cents(),
+			CurrentInvoiceDueAt:           timeToString(value.CurrentInvoiceDueAt),
+			CurrentInvoiceEffectiveStatus: string(value.CurrentInvoiceEffectiveStatus),
+		})
+	}
+	return responses
 }
 
 func toAccountBalanceResponses(values []ports.AccountBalanceDTO) []accountBalanceResponse {

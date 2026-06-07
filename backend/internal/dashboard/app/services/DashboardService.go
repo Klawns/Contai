@@ -54,6 +54,10 @@ func (service DashboardService) GetMonthlyDashboard(ctx context.Context, input p
 	if err != nil {
 		return ports.MonthlyDashboardDTO{}, err
 	}
+	creditCards, err := service.repository.FindCreditCards(ctx, input.UserID, time.Now())
+	if err != nil {
+		return ports.MonthlyDashboardDTO{}, err
+	}
 
 	return ports.MonthlyDashboardDTO{
 		UserID:             input.UserID,
@@ -65,6 +69,7 @@ func (service DashboardService) GetMonthlyDashboard(ctx context.Context, input p
 		MonthlyTransferOut: transactionTotals.TransferOutTotal,
 		MonthlyNetBalance:  transactionTotals.IncomeTotal.Sub(transactionTotals.ExpenseTotal),
 		AccountBalances:    nonNilAccountBalances(accountBalances),
+		CreditCards:        nonNilCreditCards(creditCards),
 		ExpensesByCategory: nonNilExpensesByCategory(expensesByCategory),
 		RecentTransactions: nonNilRecentTransactions(recentTransactions),
 	}, nil
@@ -152,6 +157,13 @@ func nonNilAccountBalances(values []ports.AccountBalanceDTO) []ports.AccountBala
 func nonNilExpensesByCategory(values []ports.CategoryExpenseDTO) []ports.CategoryExpenseDTO {
 	if values == nil {
 		return []ports.CategoryExpenseDTO{}
+	}
+	return values
+}
+
+func nonNilCreditCards(values []ports.CreditCardDashboardDTO) []ports.CreditCardDashboardDTO {
+	if values == nil {
+		return []ports.CreditCardDashboardDTO{}
 	}
 	return values
 }

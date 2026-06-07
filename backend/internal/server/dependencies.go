@@ -20,6 +20,11 @@ import (
 	commitmentpersistence "contai/internal/commitments/adapters/persistence"
 	commitmentports "contai/internal/commitments/app/ports"
 	commitmentservices "contai/internal/commitments/app/services"
+	creditcardhttp "contai/internal/creditcards/adapters/http"
+	creditcardids "contai/internal/creditcards/adapters/ids"
+	creditcardpersistence "contai/internal/creditcards/adapters/persistence"
+	creditcardports "contai/internal/creditcards/app/ports"
+	creditcardservices "contai/internal/creditcards/app/services"
 	dashboardhttp "contai/internal/dashboard/adapters/http"
 	dashboardpersistence "contai/internal/dashboard/adapters/persistence"
 	dashboardports "contai/internal/dashboard/app/ports"
@@ -55,6 +60,8 @@ type dependencies struct {
 	transactionHandler transactionhttp.Handler
 	commitmentService  commitmentports.CommitmentService
 	commitmentHandler  commitmenthttp.Handler
+	creditCardService  creditcardports.CreditCardService
+	creditCardHandler  creditcardhttp.Handler
 	dashboardService   dashboardports.DashboardService
 	dashboardHandler   dashboardhttp.Handler
 	reportService      reportports.ReportService
@@ -74,6 +81,10 @@ func newDependencies(cfg config) (dependencies, error) {
 			&accountpersistence.AccountEntity{},
 			&transactionpersistence.TransactionEntity{},
 			&commitmentpersistence.CommitmentEntity{},
+			&creditcardpersistence.CreditCardEntity{},
+			&creditcardpersistence.CardPurchaseEntity{},
+			&creditcardpersistence.CardInvoiceEntity{},
+			&creditcardpersistence.CardInstallmentEntity{},
 		); err != nil {
 			return dependencies{}, err
 		}
@@ -84,6 +95,7 @@ func newDependencies(cfg config) (dependencies, error) {
 	accountRepository := accountpersistence.NewAccountRepository(db)
 	transactionRepository := transactionpersistence.NewTransactionRepository(db)
 	commitmentRepository := commitmentpersistence.NewCommitmentRepository(db)
+	creditCardRepository := creditcardpersistence.NewRepository(db)
 	dashboardRepository := dashboardpersistence.NewRepository(db)
 	reportRepository := reportpersistence.NewReportRepository(db)
 	unitOfWork := database.NewUnitOfWork(db)
@@ -92,6 +104,7 @@ func newDependencies(cfg config) (dependencies, error) {
 	accountIDGenerator := accountids.NewUUIDAccountIDGenerator()
 	transactionIDGenerator := transactionids.NewUUIDTransactionIDGenerator()
 	commitmentIDGenerator := commitmentids.NewUUIDCommitmentIDGenerator()
+	creditCardIDGenerator := creditcardids.NewUUIDCreditCardIDGenerator()
 	passwordHasher := password.NewBcryptHasher()
 	activeUserValidator := accountusers.NewActiveUserValidator(userRepository)
 	categoryService := categoryservices.NewCategoryService(categoryRepository, categoryIDGenerator)
@@ -103,6 +116,15 @@ func newDependencies(cfg config) (dependencies, error) {
 		accountRepository,
 		categoryRepository,
 		commitmentIDGenerator,
+		transactionIDGenerator,
+		unitOfWork,
+	)
+	creditCardService := creditcardservices.NewCreditCardService(
+		creditCardRepository,
+		accountRepository,
+		categoryRepository,
+		transactionRepository,
+		creditCardIDGenerator,
 		transactionIDGenerator,
 		unitOfWork,
 	)
@@ -131,6 +153,8 @@ func newDependencies(cfg config) (dependencies, error) {
 		transactionHandler: transactionhttp.NewHandler(transactionService),
 		commitmentService:  commitmentService,
 		commitmentHandler:  commitmenthttp.NewHandler(commitmentService),
+		creditCardService:  creditCardService,
+		creditCardHandler:  creditcardhttp.NewHandler(creditCardService),
 		dashboardService:   dashboardService,
 		dashboardHandler:   dashboardhttp.NewHandler(dashboardService),
 		reportService:      reportService,

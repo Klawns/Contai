@@ -6,6 +6,7 @@ import (
 
 	accountdomain "contai/internal/account/domain"
 	categorydomain "contai/internal/category/domain"
+	creditcarddomain "contai/internal/creditcards/domain"
 	dashboarddomain "contai/internal/dashboard/domain"
 	financedomain "contai/internal/finance/domain"
 	transactiondomain "contai/internal/transactions/domain"
@@ -32,6 +33,7 @@ type MonthlyDashboardDTO struct {
 	MonthlyTransferOut financedomain.Money
 	MonthlyNetBalance  financedomain.Money
 	AccountBalances    []AccountBalanceDTO
+	CreditCards        []CreditCardDashboardDTO
 	ExpensesByCategory []CategoryExpenseDTO
 	RecentTransactions []TransactionDTO
 }
@@ -65,6 +67,19 @@ type CategoryExpenseDTO struct {
 	Color      string
 	Icon       string
 	Total      financedomain.Money
+}
+
+type CreditCardDashboardDTO struct {
+	CardID                        creditcarddomain.CreditCardID
+	Name                          string
+	LinkedAccountID               accountdomain.AccountID
+	LimitTotal                    financedomain.Money
+	LimitUsed                     financedomain.Money
+	LimitAvailable                financedomain.Money
+	CurrentInvoiceID              *creditcarddomain.InvoiceID
+	CurrentInvoiceAmount          financedomain.Money
+	CurrentInvoiceDueAt           *time.Time
+	CurrentInvoiceEffectiveStatus creditcarddomain.InvoiceEffectiveStatus
 }
 
 type TransactionDTO struct {

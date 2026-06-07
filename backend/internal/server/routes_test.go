@@ -132,6 +132,48 @@ func TestRegisterRoutesIncludesAuthenticatedCommitmentRoutes(t *testing.T) {
 	}
 }
 
+func TestRegisterRoutesIncludesAuthenticatedCreditCardRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	registerRoutes(router, dependencies{})
+
+	routes := router.Routes()
+	expected := map[string]string{
+		http.MethodGet + " /api/credit-cards":                               "",
+		http.MethodPost + " /api/credit-cards":                              "",
+		http.MethodPatch + " /api/credit-cards/:cardID":                     "",
+		http.MethodPatch + " /api/credit-cards/:cardID/inactivate":          "",
+		http.MethodGet + " /api/credit-cards/:cardID/purchases":             "",
+		http.MethodPost + " /api/credit-cards/:cardID/purchases":            "",
+		http.MethodPatch + " /api/credit-card-purchases/:purchaseID/cancel": "",
+		http.MethodGet + " /api/credit-cards/:cardID/invoices":              "",
+		http.MethodGet + " /api/credit-card-invoices/:invoiceID":            "",
+		http.MethodPatch + " /api/credit-card-invoices/:invoiceID/close":    "",
+		http.MethodPatch + " /api/credit-card-invoices/:invoiceID/pay":      "",
+	}
+
+	for _, route := range routes {
+		key := route.Method + " " + route.Path
+		if _, ok := expected[key]; ok {
+			delete(expected, key)
+		}
+	}
+
+	if len(expected) > 0 {
+		t.Fatalf("expected credit card routes to be registered, missing %#v", expected)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/credit-cards", nil)
+
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected credit card route to require authentication, got %d", recorder.Code)
+	}
+}
+
 func TestRegisterRoutesIncludesAuthenticatedDashboardRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

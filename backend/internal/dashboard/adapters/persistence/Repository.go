@@ -6,6 +6,7 @@ import (
 
 	accountdomain "contai/internal/account/domain"
 	categorydomain "contai/internal/category/domain"
+	creditcarddomain "contai/internal/creditcards/domain"
 	"contai/internal/dashboard/app/ports"
 	dashboarddomain "contai/internal/dashboard/domain"
 	financedomain "contai/internal/finance/domain"
@@ -48,6 +49,58 @@ func (repository Repository) FindActiveAccountBalances(ctx context.Context, user
 		})
 	}
 	return balances, nil
+}
+
+func (repository Repository) FindCreditCards(ctx context.Context, userID userdomain.UserID, now time.Time) ([]ports.CreditCardDashboardDTO, error) {
+	var cards []creditCardRow
+	if err := repository.db.WithContext(ctx).
+		Table("credit_cards").
+		Select("id, name, linked_account_id, limit_total, closing_day, due_day").
+		Where("user_id = ? AND status = ?", string(userID), string(creditcarddomain.CreditCardStatusActive)).
+		Order("name ASC").
+		Scan(&cards).Error; err != nil {
+		return nil, err
+	}
+
+	values := make([]ports.CreditCardDashboardDTO, 0, len(cards))
+	for _, card := range cards {
+		limitUsed, err := repository.sumCreditCardLimitUsed(ctx, userID, card.ID)
+		if err != nil {
+			return nil, err
+		}
+		referenceMonth, _, _ := creditcarddomain.CycleForPurchase(now, card.ClosingDay, card.DueDay)
+		invoice, err := repository.findCurrentInvoice(ctx, userID, card.ID, referenceMonth)
+		if err != nil {
+			return nil, err
+		}
+		value := ports.CreditCardDashboardDTO{
+			CardID:          creditcarddomain.CreditCardID(card.ID),
+			Name:            card.Name,
+			LinkedAccountID: accountdomain.AccountID(card.LinkedAccountID),
+			LimitTotal:      financedomain.NewMoney(card.LimitTotal),
+			LimitUsed:       limitUsed,
+			LimitAvailable:  financedomain.NewMoney(card.LimitTotal).Sub(limitUsed),
+		}
+		if invoice != nil {
+			invoiceID := creditcarddomain.InvoiceID(invoice.ID)
+			value.CurrentInvoiceID = &invoiceID
+			value.CurrentInvoiceAmount = invoice.Amount
+			value.CurrentInvoiceDueAt = &invoice.DueAt
+			value.CurrentInvoiceEffectiveStatus = creditcarddomain.Invoice{
+				ID:             creditcarddomain.InvoiceID(invoice.ID),
+				UserID:         userID,
+				CardID:         creditcarddomain.CreditCardID(card.ID),
+				ReferenceMonth: invoice.ReferenceMonth,
+				DueAt:          invoice.DueAt,
+				Status:         creditcarddomain.InvoiceStatus(invoice.Status),
+				PaidAt:         invoice.PaidAt,
+				CreatedAt:      now,
+				UpdatedAt:      now,
+			}.EffectiveStatus(now)
+		}
+		values = append(values, value)
+	}
+	return values, nil
 }
 
 func (repository Repository) SumIncome(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period) (financedomain.Money, error) {
@@ -230,6 +283,39 @@ func (repository Repository) FindRecentTransactions(ctx context.Context, userID 
 	return transactions, nil
 }
 
+func (repository Repository) sumCreditCardLimitUsed(ctx context.Context, userID userdomain.UserID, cardID string) (financedomain.Money, error) {
+	var total int64
+	if err := repository.db.WithContext(ctx).
+		Table("card_installments").
+		Select("COALESCE(SUM(card_installments.amount), 0)").
+		Joins("JOIN card_invoices ON card_invoices.id = card_installments.invoice_id").
+		Where("card_installments.user_id = ? AND card_installments.card_id = ?", string(userID), cardID).
+		Where("card_installments.status = ?", string(creditcarddomain.PurchaseStatusActive)).
+		Where("card_invoices.status NOT IN ?", []string{string(creditcarddomain.InvoiceStatusPaid), string(creditcarddomain.InvoiceStatusCanceled)}).
+		Scan(&total).Error; err != nil {
+		return 0, err
+	}
+	return financedomain.NewMoney(total), nil
+}
+
+func (repository Repository) findCurrentInvoice(ctx context.Context, userID userdomain.UserID, cardID string, referenceMonth time.Time) (*currentInvoiceRow, error) {
+	var row currentInvoiceRow
+	err := repository.db.WithContext(ctx).
+		Table("card_invoices").
+		Select("card_invoices.id, card_invoices.reference_month, card_invoices.due_at, card_invoices.status, card_invoices.paid_at, COALESCE(SUM(card_installments.amount), 0) AS amount").
+		Joins("LEFT JOIN card_installments ON card_installments.invoice_id = card_invoices.id AND card_installments.status = ?", string(creditcarddomain.PurchaseStatusActive)).
+		Where("card_invoices.user_id = ? AND card_invoices.card_id = ? AND card_invoices.reference_month = ?", string(userID), cardID, creditcarddomain.FirstDayOfMonth(referenceMonth)).
+		Group("card_invoices.id, card_invoices.reference_month, card_invoices.due_at, card_invoices.status, card_invoices.paid_at").
+		First(&row).Error
+	if err == gorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
 func (repository Repository) sumByType(ctx context.Context, userID userdomain.UserID, period dashboarddomain.Period, transactionType transactiondomain.TransactionType) (financedomain.Money, error) {
 	var total int64
 	if err := repository.db.WithContext(ctx).
@@ -252,6 +338,24 @@ type accountBalanceRow struct {
 	CurrentBalance          int64
 	BankIconID              string
 	IncludeInDashboardTotal bool
+}
+
+type creditCardRow struct {
+	ID              string
+	Name            string
+	LinkedAccountID string
+	LimitTotal      int64
+	ClosingDay      int
+	DueDay          int
+}
+
+type currentInvoiceRow struct {
+	ID             string
+	ReferenceMonth time.Time
+	DueAt          time.Time
+	Status         string
+	PaidAt         *time.Time
+	Amount         financedomain.Money
 }
 
 type expenseByCategoryRow struct {
@@ -315,6 +419,8 @@ func toDomainTransaction(row recentTransactionRow) (transactiondomain.Transactio
 		toAccountID(row.DestinationAccountID),
 		toCategoryID(row.CategoryID),
 		transactiondomain.TransactionStatus(row.Status),
+		transactiondomain.TransactionOriginTypeManual,
+		nil,
 		row.Note,
 		row.RemovedAt,
 		row.CreatedAt,

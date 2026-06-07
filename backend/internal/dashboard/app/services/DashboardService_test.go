@@ -181,6 +181,9 @@ func TestDashboardServiceReturnsEmptySlices(t *testing.T) {
 	if dashboard.AccountBalances == nil {
 		t.Fatal("expected non-nil account balances")
 	}
+	if dashboard.CreditCards == nil {
+		t.Fatal("expected non-nil credit cards")
+	}
 	if dashboard.ExpensesByCategory == nil {
 		t.Fatal("expected non-nil expenses by category")
 	}
@@ -203,6 +206,7 @@ func validPeriod(t *testing.T) domain.Period {
 
 type fakeDashboardRepository struct {
 	accountBalances      []ports.AccountBalanceDTO
+	creditCards          []ports.CreditCardDashboardDTO
 	income               financedomain.Money
 	expense              financedomain.Money
 	expensesByCategory   []ports.CategoryExpenseDTO
@@ -216,6 +220,10 @@ type fakeDashboardRepository struct {
 
 func (repository *fakeDashboardRepository) FindActiveAccountBalances(ctx context.Context, userID userdomain.UserID) ([]ports.AccountBalanceDTO, error) {
 	return repository.accountBalances, nil
+}
+
+func (repository *fakeDashboardRepository) FindCreditCards(ctx context.Context, userID userdomain.UserID, now time.Time) ([]ports.CreditCardDashboardDTO, error) {
+	return repository.creditCards, nil
 }
 
 func (repository *fakeDashboardRepository) SumIncome(ctx context.Context, userID userdomain.UserID, period domain.Period) (financedomain.Money, error) {
