@@ -53,6 +53,8 @@ type transactionResponse struct {
 	DestinationAccountID *string `json:"destinationAccountId"`
 	CategoryID           *string `json:"categoryId"`
 	Status               string  `json:"status"`
+	OriginType           string  `json:"originType"`
+	OriginID             *string `json:"originId"`
 	Note                 string  `json:"note"`
 	RemovedAt            *string `json:"removedAt"`
 	CreatedAt            string  `json:"createdAt"`
@@ -72,6 +74,8 @@ func toTransactionResponse(transaction ports.TransactionDTO) transactionResponse
 		DestinationAccountID: accountIDToString(transaction.DestinationAccountID),
 		CategoryID:           categoryIDToString(transaction.CategoryID),
 		Status:               string(transaction.Status),
+		OriginType:           string(transaction.OriginType),
+		OriginID:             transaction.OriginID,
 		Note:                 transaction.Note,
 		RemovedAt:            timeToString(transaction.RemovedAt),
 		CreatedAt:            transaction.CreatedAt.Format(timeFormatRFC3339),

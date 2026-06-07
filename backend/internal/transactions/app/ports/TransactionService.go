@@ -23,6 +23,8 @@ type TransactionDTO struct {
 	DestinationAccountID *accountdomain.AccountID
 	CategoryID           *categorydomain.CategoryID
 	Status               domain.TransactionStatus
+	OriginType           domain.TransactionOriginType
+	OriginID             *string
 	Note                 string
 	RemovedAt            *time.Time
 	CreatedAt            time.Time
@@ -36,6 +38,8 @@ type CreateIncomeInput struct {
 	OccurredAt  time.Time
 	AccountID   accountdomain.AccountID
 	CategoryID  categorydomain.CategoryID
+	OriginType  domain.TransactionOriginType
+	OriginID    string
 	Note        string
 }
 

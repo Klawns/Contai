@@ -38,6 +38,11 @@ func (service TransactionService) CreateIncome(ctx context.Context, input ports.
 	if err != nil {
 		return ports.TransactionDTO{}, err
 	}
+	if input.OriginType != "" {
+		if err := transaction.SetOrigin(input.OriginType, input.OriginID); err != nil {
+			return ports.TransactionDTO{}, err
+		}
+	}
 	return service.create(ctx, transaction)
 }
 
@@ -45,6 +50,11 @@ func (service TransactionService) CreateExpense(ctx context.Context, input ports
 	transaction, err := domain.NewExpense(service.idGenerator.NewTransactionID(), input.UserID, input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.Note)
 	if err != nil {
 		return ports.TransactionDTO{}, err
+	}
+	if input.OriginType != "" {
+		if err := transaction.SetOrigin(input.OriginType, input.OriginID); err != nil {
+			return ports.TransactionDTO{}, err
+		}
 	}
 	return service.create(ctx, transaction)
 }
@@ -91,6 +101,9 @@ func (service TransactionService) UpdateTransaction(ctx context.Context, input p
 		}
 		if transaction.Status == domain.TransactionStatusRemoved {
 			return domain.ErrTransactionRemoved
+		}
+		if transaction.HasManagedOrigin() {
+			return domain.ErrTransactionManagedOrigin
 		}
 
 		if err := service.applyEffects(txCtx, accountRepository, transaction.UserID, transaction.ReversalEffects()); err != nil {
@@ -148,6 +161,9 @@ func (service TransactionService) DeleteTransaction(ctx context.Context, input p
 		}
 		if transaction.Status == domain.TransactionStatusRemoved {
 			return nil
+		}
+		if transaction.HasManagedOrigin() {
+			return domain.ErrTransactionManagedOrigin
 		}
 		if err := service.applyEffects(txCtx, accountRepository, transaction.UserID, transaction.ReversalEffects()); err != nil {
 			return err
@@ -271,6 +287,8 @@ func toTransactionDTO(transaction domain.Transaction) ports.TransactionDTO {
 		DestinationAccountID: transaction.DestinationAccountID,
 		CategoryID:           transaction.CategoryID,
 		Status:               transaction.Status,
+		OriginType:           transaction.OriginType,
+		OriginID:             transaction.OriginID,
 		Note:                 transaction.Note,
 		RemovedAt:            transaction.RemovedAt,
 		CreatedAt:            transaction.CreatedAt,

@@ -14,6 +14,8 @@ type TransactionEntity struct {
 	DestinationAccountID *string   `gorm:"type:uuid;index"`
 	CategoryID           *string   `gorm:"type:uuid;index"`
 	Status               string    `gorm:"not null;index"`
+	OriginType           string    `gorm:"not null;default:manual;index"`
+	OriginID             *string   `gorm:"index"`
 	Note                 string    `gorm:"not null"`
 	RemovedAt            *time.Time
 	CreatedAt            time.Time

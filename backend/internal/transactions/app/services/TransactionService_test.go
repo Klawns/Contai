@@ -74,6 +74,46 @@ func TestTransactionService_CreateIncomeRejectsExpenseCategory(t *testing.T) {
 	}
 }
 
+func TestTransactionService_UpdateRejectsManagedOrigin(t *testing.T) {
+	transaction, err := domain.NewExpense(
+		"transaction-id",
+		"user-id",
+		"Invoice",
+		financedomain.NewMoney(1000),
+		time.Now(),
+		"account-id",
+		"category-id",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("expected valid transaction, got %v", err)
+	}
+	if err := transaction.SetOrigin(domain.TransactionOriginTypePayable, "commitment-id"); err != nil {
+		t.Fatalf("expected origin to be set, got %v", err)
+	}
+	service := NewTransactionService(
+		&fakeTransactionRepository{found: &transaction},
+		&fakeAccountRepository{accounts: map[accountdomain.AccountID]*accountdomain.Account{}},
+		&fakeCategoryRepository{categories: map[categorydomain.CategoryID]*categorydomain.Category{}},
+		fakeTransactionIDGenerator{},
+		&fakeUnitOfWork{},
+	)
+
+	_, err = service.UpdateTransaction(context.Background(), ports.UpdateTransactionInput{
+		UserID:        "user-id",
+		TransactionID: "transaction-id",
+		Description:   "Invoice",
+		Amount:        financedomain.NewMoney(1000),
+		OccurredAt:    time.Now(),
+		AccountID:     "account-id",
+		CategoryID:    "category-id",
+	})
+
+	if !errors.Is(err, domain.ErrTransactionManagedOrigin) {
+		t.Fatalf("expected managed origin error, got %v", err)
+	}
+}
+
 func validAccount(t *testing.T, id accountdomain.AccountID, balance financedomain.Money) accountdomain.Account {
 	t.Helper()
 	account, err := accountdomain.NewAccount(id, "user-id", "Checking", accountdomain.AccountTypeChecking, balance, "bank")

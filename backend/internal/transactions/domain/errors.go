@@ -20,4 +20,5 @@ var (
 	ErrTransactionAccountNotFound                 = errors.New("transaction account not found")
 	ErrTransactionCategoryNotFound                = errors.New("transaction category not found")
 	ErrTransactionCategoryTypeMismatch            = errors.New("transaction category type mismatch")
+	ErrTransactionManagedOrigin                   = errors.New("transaction has managed origin")
 )

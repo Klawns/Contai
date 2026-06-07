@@ -64,7 +64,7 @@ func TestRehydrateTransactionValidatesShape(t *testing.T) {
 	accountID := accountdomain.AccountID("account-id")
 	categoryID := categorydomain.CategoryID("category-id")
 
-	_, err := RehydrateTransaction("transaction-id", "user-id", TransactionTypeTransfer, "Bad transfer", financedomain.NewMoney(1000), time.Now(), &accountID, nil, nil, &categoryID, TransactionStatusActive, "", nil, time.Now(), time.Now())
+	_, err := RehydrateTransaction("transaction-id", "user-id", TransactionTypeTransfer, "Bad transfer", financedomain.NewMoney(1000), time.Now(), &accountID, nil, nil, &categoryID, TransactionStatusActive, TransactionOriginTypeManual, nil, "", nil, time.Now(), time.Now())
 
 	if !errors.Is(err, ErrTransactionSourceAccountIDRequired) {
 		t.Fatalf("expected transfer source account error, got %v", err)

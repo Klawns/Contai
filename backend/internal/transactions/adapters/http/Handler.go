@@ -274,6 +274,8 @@ func writeError(ctx *gin.Context, err error) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "category not found"})
 	case errors.Is(err, domain.ErrTransactionRemoved):
 		ctx.JSON(http.StatusConflict, gin.H{"error": "transaction is removed"})
+	case errors.Is(err, domain.ErrTransactionManagedOrigin):
+		ctx.JSON(http.StatusConflict, gin.H{"error": "transaction has managed origin"})
 	case errors.Is(err, domain.ErrTransactionCategoryTypeMismatch):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "category type mismatch"})
 	case errors.Is(err, domain.ErrTransactionIDRequired),

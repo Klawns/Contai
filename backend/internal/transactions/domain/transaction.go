@@ -27,6 +27,15 @@ const (
 	TransactionStatusRemoved TransactionStatus = "removed"
 )
 
+type TransactionOriginType string
+
+const (
+	TransactionOriginTypeManual            TransactionOriginType = "manual"
+	TransactionOriginTypePayable           TransactionOriginType = "payable"
+	TransactionOriginTypeReceivable        TransactionOriginType = "receivable"
+	TransactionOriginTypeCreditCardInvoice TransactionOriginType = "credit_card_invoice"
+)
+
 type Transaction struct {
 	ID                   TransactionID
 	UserID               userdomain.UserID
@@ -39,6 +48,8 @@ type Transaction struct {
 	DestinationAccountID *accountdomain.AccountID
 	CategoryID           *categorydomain.CategoryID
 	Status               TransactionStatus
+	OriginType           TransactionOriginType
+	OriginID             *string
 	Note                 string
 	RemovedAt            *time.Time
 	CreatedAt            time.Time
@@ -68,7 +79,10 @@ func NewTransfer(id TransactionID, userID userdomain.UserID, description string,
 	return newTransaction(id, userID, TransactionTypeTransfer, description, amount, occurredAt, nil, &source, &destination, nil, note)
 }
 
-func RehydrateTransaction(id TransactionID, userID userdomain.UserID, transactionType TransactionType, description string, amount financedomain.Money, occurredAt time.Time, accountID *accountdomain.AccountID, sourceAccountID *accountdomain.AccountID, destinationAccountID *accountdomain.AccountID, categoryID *categorydomain.CategoryID, status TransactionStatus, note string, removedAt *time.Time, createdAt, updatedAt time.Time) (Transaction, error) {
+func RehydrateTransaction(id TransactionID, userID userdomain.UserID, transactionType TransactionType, description string, amount financedomain.Money, occurredAt time.Time, accountID *accountdomain.AccountID, sourceAccountID *accountdomain.AccountID, destinationAccountID *accountdomain.AccountID, categoryID *categorydomain.CategoryID, status TransactionStatus, originType TransactionOriginType, originID *string, note string, removedAt *time.Time, createdAt, updatedAt time.Time) (Transaction, error) {
+	if originType == "" {
+		originType = TransactionOriginTypeManual
+	}
 	transaction := Transaction{
 		ID:                   TransactionID(strings.TrimSpace(string(id))),
 		UserID:               userdomain.UserID(strings.TrimSpace(string(userID))),
@@ -81,6 +95,8 @@ func RehydrateTransaction(id TransactionID, userID userdomain.UserID, transactio
 		DestinationAccountID: trimAccountIDPointer(destinationAccountID),
 		CategoryID:           trimCategoryIDPointer(categoryID),
 		Status:               status,
+		OriginType:           originType,
+		OriginID:             trimStringPointer(originID),
 		Note:                 strings.TrimSpace(note),
 		RemovedAt:            removedAt,
 		CreatedAt:            createdAt,
@@ -106,6 +122,7 @@ func newTransaction(id TransactionID, userID userdomain.UserID, transactionType 
 		DestinationAccountID: trimAccountIDPointer(destinationAccountID),
 		CategoryID:           trimCategoryIDPointer(categoryID),
 		Status:               TransactionStatusActive,
+		OriginType:           TransactionOriginTypeManual,
 		Note:                 strings.TrimSpace(note),
 		CreatedAt:            now,
 		UpdatedAt:            now,
@@ -114,6 +131,22 @@ func newTransaction(id TransactionID, userID userdomain.UserID, transactionType 
 		return Transaction{}, err
 	}
 	return transaction, nil
+}
+
+func (transaction *Transaction) SetOrigin(originType TransactionOriginType, originID string) error {
+	transaction.OriginType = originType
+	if strings.TrimSpace(originID) == "" {
+		transaction.OriginID = nil
+	} else {
+		trimmed := strings.TrimSpace(originID)
+		transaction.OriginID = &trimmed
+	}
+	transaction.UpdatedAt = time.Now()
+	return transaction.validate()
+}
+
+func (transaction Transaction) HasManagedOrigin() bool {
+	return transaction.OriginType != TransactionOriginTypeManual
 }
 
 func (transaction *Transaction) EditIncome(description string, amount financedomain.Money, occurredAt time.Time, accountID accountdomain.AccountID, categoryID categorydomain.CategoryID, note string) error {
@@ -211,6 +244,12 @@ func (transaction Transaction) validate() error {
 	if transaction.Status != TransactionStatusActive && transaction.Status != TransactionStatusRemoved {
 		return ErrTransactionInvalidStatus
 	}
+	if transaction.OriginType != TransactionOriginTypeManual &&
+		transaction.OriginType != TransactionOriginTypePayable &&
+		transaction.OriginType != TransactionOriginTypeReceivable &&
+		transaction.OriginType != TransactionOriginTypeCreditCardInvoice {
+		return ErrTransactionInvalidType
+	}
 	switch transaction.Type {
 	case TransactionTypeIncome, TransactionTypeExpense:
 		if transaction.AccountID == nil || strings.TrimSpace(string(*transaction.AccountID)) == "" {
@@ -245,6 +284,17 @@ func (transaction Transaction) validate() error {
 		return ErrTransactionInvalidStatus
 	}
 	return nil
+}
+
+func trimStringPointer(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
 }
 
 func trimAccountIDPointer(value *accountdomain.AccountID) *accountdomain.AccountID {
