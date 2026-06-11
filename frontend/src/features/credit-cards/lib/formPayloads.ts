@@ -21,7 +21,9 @@ export function toCardPurchasePayload(values: PurchaseFormValues): CardPurchaseP
     description: values.description.trim(),
     totalAmount: values.totalAmount,
     purchaseDate: toLocalDateTime(values.purchaseDate),
+    purchaseType: values.purchaseType,
     installmentCount: values.installmentCount,
+    firstInvoiceMonth: values.firstInvoiceMonth,
     note: values.note.trim(),
   }
 }

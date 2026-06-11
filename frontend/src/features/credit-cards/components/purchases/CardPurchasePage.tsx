@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ReceiptText } from 'lucide-react'
@@ -28,6 +28,7 @@ export function CardPurchasePage() {
   const [searchParams] = useSearchParams()
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const initialCardId = searchParams.get('cardId') ?? ''
+  const currentMonth = new Date().toISOString().slice(0, 7)
   const {
     control,
     handleSubmit,
@@ -40,7 +41,9 @@ export function CardPurchasePage() {
       description: '',
       totalAmount: 0,
       purchaseDate: toDateInputValue(new Date()),
+      purchaseType: 'single',
       installmentCount: 1,
+      firstInvoiceMonth: currentMonth,
       note: '',
     },
     resolver: zodResolver(purchaseFormSchema),
@@ -48,7 +51,17 @@ export function CardPurchasePage() {
   const selectedCardId = useWatch({ control, name: 'cardId' })
   const selectedAmount = useWatch({ control, name: 'totalAmount' })
   const installmentCount = useWatch({ control, name: 'installmentCount' })
+  const purchaseType = useWatch({ control, name: 'purchaseType' })
   const mutation = useCreateCardPurchase(selectedCardId)
+
+  useEffect(() => {
+    if ((purchaseType === 'single' || purchaseType === 'fixed') && installmentCount !== 1) {
+      setValue('installmentCount', 1, { shouldValidate: true })
+    }
+    if (purchaseType === 'installment' && installmentCount < 2) {
+      setValue('installmentCount', 2, { shouldValidate: true })
+    }
+  }, [installmentCount, purchaseType, setValue])
 
   return (
     <>
@@ -85,19 +98,53 @@ export function CardPurchasePage() {
             <Controller control={control} name="categoryId" render={({ field }) => (
               <CategorySelector type="expense" value={field.value} error={errors.categoryId?.message} onChange={field.onChange} onAddCategory={() => setIsAddingCategory(true)} />
             )} />
+            <Controller control={control} name="purchaseType" render={({ field }) => (
+              <TransactionFieldRow icon={<ReceiptText className="h-5 w-5" aria-hidden="true" />} label="Tipo" error={errors.purchaseType?.message}>
+                <div className="grid w-full grid-cols-3 gap-2">
+                  {[
+                    ['single', 'Unica'],
+                    ['installment', 'Parcelada'],
+                    ['fixed', 'Fixa'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`h-10 rounded-lg text-[12px] font-semibold ${field.value === value ? 'bg-[#281d35] text-white' : 'bg-[#f4f1f7] text-[#5f536d]'}`}
+                      onClick={() => field.onChange(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </TransactionFieldRow>
+            )} />
             <Controller control={control} name="installmentCount" render={({ field }) => (
               <TransactionFieldRow icon={<ReceiptText className="h-5 w-5" aria-hidden="true" />} label="Parcelas" error={errors.installmentCount?.message}>
-                <input
-                  type="number"
-                  min={1}
-                  max={48}
-                  className="h-11 w-24 rounded-lg border border-[#e5deee] bg-white px-3 text-[14px] font-semibold text-[#2c2237] outline-none"
+                <select
+                  className="h-11 w-32 rounded-lg border border-[#e5deee] bg-white px-3 text-[14px] font-semibold text-[#2c2237] outline-none"
                   value={field.value}
+                  disabled={purchaseType !== 'installment'}
                   onChange={(event) => field.onChange(Number(event.target.value))}
-                />
+                >
+                  {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                    <option key={count} value={count}>
+                      {count}x
+                    </option>
+                  ))}
+                </select>
                 <span className="ml-3 truncate text-[13px] font-semibold text-[#81788c]">
                   {getInstallmentText(selectedAmount, installmentCount)}
                 </span>
+              </TransactionFieldRow>
+            )} />
+            <Controller control={control} name="firstInvoiceMonth" render={({ field }) => (
+              <TransactionFieldRow icon={<ReceiptText className="h-5 w-5" aria-hidden="true" />} label="Fatura" error={errors.firstInvoiceMonth?.message}>
+                <input
+                  type="month"
+                  className="h-11 w-40 rounded-lg border border-[#e5deee] bg-white px-3 text-[14px] font-semibold text-[#2c2237] outline-none"
+                  value={field.value}
+                  onChange={field.onChange}
+                />
               </TransactionFieldRow>
             )} />
             <Controller control={control} name="note" render={({ field }) => <NoteInput value={field.value} onChange={field.onChange} />} />

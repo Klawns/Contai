@@ -32,15 +32,6 @@ const TransactionCreatePage = lazy(() =>
 const TransactionEditPage = lazy(() =>
   import('../transactions').then((module) => ({ default: module.TransactionEditPage })),
 )
-const PlanningPage = lazy(() =>
-  import('../commitments').then((module) => ({ default: module.PlanningPage })),
-)
-const CommitmentFormPage = lazy(() =>
-  import('../commitments').then((module) => ({ default: module.CommitmentFormPage })),
-)
-const SettlementPage = lazy(() =>
-  import('../commitments').then((module) => ({ default: module.SettlementPage })),
-)
 const CreditCardListPage = lazy(() =>
   import('../credit-cards').then((module) => ({ default: module.CreditCardListPage })),
 )
@@ -183,11 +174,6 @@ export function AuthGate() {
             <Route path="/transactions/income/new" element={<TransactionCreatePage type="income" />} />
             <Route path="/transactions/expense/new" element={<TransactionCreatePage type="expense" />} />
             <Route path="/transactions/transfer/new" element={<TransactionCreatePage type="transfer" />} />
-            <Route path="/planning" element={<PlanningPage />} />
-            <Route path="/planning/payables/new" element={<CommitmentFormPage type="payable" />} />
-            <Route path="/planning/receivables/new" element={<CommitmentFormPage type="receivable" />} />
-            <Route path="/planning/edit" element={<CommitmentEditRoute />} />
-            <Route path="/planning/settle" element={<SettlementPage />} />
             <Route path="/credit-cards" element={<CreditCardListPage />} />
             <Route path="/credit-cards/new" element={<CreditCardFormPage />} />
             <Route path="/credit-cards/edit" element={<CreditCardFormPage mode="edit" />} />
@@ -202,12 +188,4 @@ export function AuthGate() {
       </Routes>
     </Suspense>
   )
-}
-
-function CommitmentEditRoute() {
-  const location = useLocation()
-  const params = new URLSearchParams(location.search)
-  const type = params.get('type') === 'receivable' ? 'receivable' : 'payable'
-
-  return <CommitmentFormPage type={type} mode="edit" />
 }

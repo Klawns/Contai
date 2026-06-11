@@ -1,6 +1,8 @@
 export const cardPurchaseStatuses = ['active', 'canceled'] as const
+export const cardPurchaseTypes = ['single', 'installment', 'fixed'] as const
 
 export type CardPurchaseStatus = (typeof cardPurchaseStatuses)[number]
+export type CardPurchaseType = (typeof cardPurchaseTypes)[number]
 
 export type CardPurchase = {
   id: string
@@ -10,7 +12,9 @@ export type CardPurchase = {
   description: string
   totalAmount: number
   purchaseDate: string
+  purchaseType: CardPurchaseType
   installmentCount: number
+  firstInvoiceMonth: string
   note: string
   status: CardPurchaseStatus
   canceledAt: string | null
@@ -23,6 +27,8 @@ export type CardPurchasePayload = {
   description: string
   totalAmount: number
   purchaseDate: string
+  purchaseType: CardPurchaseType
   installmentCount: number
+  firstInvoiceMonth: string
   note: string
 }

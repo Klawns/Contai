@@ -1,10 +1,24 @@
 export const transactionTypes = ['income', 'expense', 'transfer'] as const
 export const categoryTransactionTypes = ['income', 'expense'] as const
 export const transactionOriginTypes = ['manual', 'payable', 'receivable', 'credit_card_invoice'] as const
+export const settlementStatuses = ['settled', 'pending'] as const
+export const recurrenceTypes = ['none', 'fixed', 'repeat'] as const
+export const recurrenceFrequencies = ['daily', 'weekly', 'monthly'] as const
 
 export type TransactionType = (typeof transactionTypes)[number]
 export type CategoryTransactionType = (typeof categoryTransactionTypes)[number]
 export type TransactionOriginType = (typeof transactionOriginTypes)[number]
+export type SettlementStatus = (typeof settlementStatuses)[number]
+export type RecurrenceType = (typeof recurrenceTypes)[number]
+export type RecurrenceFrequency = (typeof recurrenceFrequencies)[number]
+
+export type TransactionRecurrence = {
+  frequency: RecurrenceFrequency
+  quantity: number | null
+  startsAt: string
+  endsAt: string | null
+  dayOfMonth: number | null
+}
 
 export type Transaction = {
   id: string
@@ -20,6 +34,10 @@ export type Transaction = {
   status: string
   originType: TransactionOriginType
   originId: string | null
+  settlementStatus: SettlementStatus
+  settledAt: string | null
+  recurrenceType: RecurrenceType
+  recurrence: TransactionRecurrence | null
   note: string
   removedAt: string | null
   createdAt: string
@@ -60,6 +78,7 @@ export type TransactionFilters = {
   accountId?: string
   categoryId?: string
   type?: TransactionType
+  settlementStatus?: SettlementStatus
   limit?: number
   offset?: number
 }
@@ -68,8 +87,12 @@ export type CreateIncomeTransactionPayload = {
   description: string
   amount: number
   occurredAt: string
-  accountId: string
+  accountId: string | null
   categoryId: string
+  settlementStatus: SettlementStatus
+  settledAt: string | null
+  recurrenceType: RecurrenceType
+  recurrence: TransactionRecurrence | null
   note: string
 }
 

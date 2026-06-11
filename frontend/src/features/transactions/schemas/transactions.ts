@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import {
   categoryTransactionTypes,
+  recurrenceFrequencies,
+  recurrenceTypes,
+  settlementStatuses,
   transactionOriginTypes,
   transactionTypes,
   type CategoryTransactionType,
@@ -19,6 +22,9 @@ export const rfc3339DateTimeSchema = z
 export const transactionTypeSchema = z.enum(transactionTypes)
 export const transactionOriginTypeSchema = z.enum(transactionOriginTypes)
 export const categoryTransactionTypeSchema = z.enum(categoryTransactionTypes)
+export const settlementStatusSchema = z.enum(settlementStatuses)
+export const recurrenceTypeSchema = z.enum(recurrenceTypes)
+export const recurrenceFrequencySchema = z.enum(recurrenceFrequencies)
 
 export const transactionFiltersSchema = z
   .object({
@@ -27,6 +33,7 @@ export const transactionFiltersSchema = z
     accountId: z.string().min(1).optional(),
     categoryId: z.string().min(1).optional(),
     type: transactionTypeSchema.optional(),
+    settlementStatus: settlementStatusSchema.optional(),
     limit: z.number().int().nonnegative().optional(),
     offset: z.number().int().nonnegative().optional(),
   })
@@ -53,6 +60,16 @@ export const transactionSchema = z.object({
   status: z.string(),
   originType: transactionOriginTypeSchema.default('manual'),
   originId: z.string().nullable().default(null),
+  settlementStatus: settlementStatusSchema.default('settled'),
+  settledAt: rfc3339DateTimeSchema.nullable().default(null),
+  recurrenceType: recurrenceTypeSchema.default('none'),
+  recurrence: z.object({
+    frequency: recurrenceFrequencySchema,
+    quantity: z.number().int().positive().nullable(),
+    startsAt: rfc3339DateTimeSchema,
+    endsAt: rfc3339DateTimeSchema.nullable(),
+    dayOfMonth: z.number().int().min(1).max(31).nullable(),
+  }).nullable().default(null),
   note: z.string(),
   removedAt: rfc3339DateTimeSchema.nullable(),
   createdAt: rfc3339DateTimeSchema,
@@ -102,8 +119,18 @@ const createBaseTransactionPayloadSchema = z.object({
 
 export const createIncomeExpenseTransactionPayloadSchema =
   createBaseTransactionPayloadSchema.extend({
-    accountId: z.string().trim().min(1, 'Selecione uma conta.'),
+    accountId: z.string().trim().min(1).nullable(),
     categoryId: z.string().trim().min(1, 'Selecione uma categoria.'),
+    settlementStatus: settlementStatusSchema,
+    settledAt: rfc3339DateTimeSchema.nullable(),
+    recurrenceType: recurrenceTypeSchema,
+    recurrence: z.object({
+      frequency: recurrenceFrequencySchema,
+      quantity: z.number().int().positive().nullable(),
+      startsAt: rfc3339DateTimeSchema,
+      endsAt: rfc3339DateTimeSchema.nullable(),
+      dayOfMonth: z.number().int().min(1).max(31).nullable(),
+    }).nullable(),
   })
 
 export const createTransferTransactionPayloadSchema =

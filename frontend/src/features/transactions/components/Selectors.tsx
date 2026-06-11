@@ -238,20 +238,25 @@ type AccountSelectorProps = {
   label: string
   value: string
   error?: string
+  allowNone?: boolean
   onChange: (value: string) => void
 }
 
-export function AccountSelector({ label, value, error, onChange }: AccountSelectorProps) {
+export function AccountSelector({ label, value, error, allowNone = false, onChange }: AccountSelectorProps) {
   const accountsQuery = useActiveAccounts()
   const options = useMemo(
-    () =>
-      (accountsQuery.data ?? []).map((account) => ({
+    () => {
+      const accountOptions = (accountsQuery.data ?? []).map((account) => ({
         value: account.id,
         label: account.name,
         description: formatCurrency(account.currentBalance),
         item: account,
-      })),
-    [accountsQuery.data],
+      }))
+      return allowNone
+        ? [{ value: 'none', label: 'Sem conta', description: 'Nao movimenta saldo' }, ...accountOptions]
+        : accountOptions
+    },
+    [accountsQuery.data, allowNone],
   )
   const selected = options.find((option) => option.value === value)
 
@@ -273,7 +278,9 @@ export function AccountSelector({ label, value, error, onChange }: AccountSelect
       renderOption={({ option, isSelected, onSelect }) => (
         option.item ? (
           <AccountOption account={option.item} isSelected={isSelected} onSelect={onSelect} />
-        ) : null
+        ) : (
+          <DefaultSelectOption option={option} isSelected={isSelected} onSelect={onSelect} />
+        )
       )}
     />
   )

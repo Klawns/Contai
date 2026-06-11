@@ -1,4 +1,5 @@
 import type { CreditCardStatus } from './credit-card.types.ts'
+import type { CardPurchaseType } from './purchase.types.ts'
 
 export type CardFormValues = {
   name: string
@@ -15,7 +16,9 @@ export type PurchaseFormValues = {
   description: string
   totalAmount: number
   purchaseDate: string
+  purchaseType: CardPurchaseType
   installmentCount: number
+  firstInvoiceMonth: string
   note: string
 }
 

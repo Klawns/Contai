@@ -11,11 +11,6 @@ export type AuthPath =
   | '/transactions/income/new'
   | '/transactions/expense/new'
   | '/transactions/transfer/new'
-  | '/planning'
-  | '/planning/payables/new'
-  | '/planning/receivables/new'
-  | '/planning/edit'
-  | '/planning/settle'
   | '/credit-cards'
   | '/credit-cards/new'
   | '/credit-cards/edit'
@@ -39,11 +34,6 @@ export const supportedPaths = new Set<string>([
   '/transactions/income/new',
   '/transactions/expense/new',
   '/transactions/transfer/new',
-  '/planning',
-  '/planning/payables/new',
-  '/planning/receivables/new',
-  '/planning/edit',
-  '/planning/settle',
   '/credit-cards',
   '/credit-cards/new',
   '/credit-cards/edit',

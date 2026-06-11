@@ -1,3 +1,4 @@
+import axios from 'axios'
 import { api } from '../../../lib/api/axios.ts'
 import {
   authenticatedUserSchema,
@@ -25,8 +26,16 @@ export async function logout(): Promise<void> {
   await api.post('/auth/logout')
 }
 
-export async function getCurrentUser(): Promise<AuthenticatedUser> {
-  const response = await api.get<unknown>('/auth/me')
+export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+  try {
+    const response = await api.get<unknown>('/auth/me')
 
-  return authenticatedUserSchema.parse(response.data)
+    return authenticatedUserSchema.parse(response.data)
+  } catch (error) {
+    if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 500)) {
+      return null
+    }
+
+    throw error
+  }
 }

@@ -81,6 +81,9 @@ function parseMonthQuery(value: string | null): SelectedMonth | null {
 }
 
 function getSignedAmount(transaction: Transaction) {
+  if (transaction.settlementStatus !== 'settled') {
+    return 0
+  }
   if (transaction.type === 'expense') {
     return -transaction.amount
   }
@@ -88,6 +91,23 @@ function getSignedAmount(transaction: Transaction) {
     return transaction.amount
   }
   return 0
+}
+
+function affectsBalance(transaction: Transaction) {
+  if (transaction.type === 'transfer') {
+    return true
+  }
+  return transaction.settlementStatus === 'settled' && Boolean(transaction.accountId)
+}
+
+function getSettlementLabel(transaction: Transaction) {
+  if (transaction.type === 'transfer') {
+    return null
+  }
+  if (transaction.type === 'income') {
+    return transaction.settlementStatus === 'settled' ? 'Recebido' : 'Nao recebido'
+  }
+  return transaction.settlementStatus === 'settled' ? 'Pago' : 'Nao pago'
 }
 
 function getTransactionIcon(transaction: Transaction) {
@@ -357,6 +377,12 @@ function TransactionList({ transactions, accountNames, categoryNames }: Transact
               : [account?.name, category?.name].filter(Boolean).join(' / ')
           const signedAmount = getSignedAmount(transaction)
           const originLabel = getTransactionOriginLabel(transaction)
+          const settlementLabel = getSettlementLabel(transaction)
+          const balanceLabel = !affectsBalance(transaction)
+            ? transaction.accountId
+              ? 'Pendente, nao movimentou saldo'
+              : 'Sem conta, nao movimentou saldo'
+            : null
 
           return (
             <li
@@ -384,6 +410,13 @@ function TransactionList({ transactions, accountNames, categoryNames }: Transact
                   <p className="mt-1 flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-tight text-[#958c9f]">
                     <CalendarDays className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
                     <span className="truncate">{originLabel}</span>
+                  </p>
+                ) : null}
+                {settlementLabel || balanceLabel ? (
+                  <p className="mt-1 flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-tight text-[#958c9f]">
+                    <span className="truncate">
+                      {[settlementLabel, balanceLabel].filter(Boolean).join(' - ')}
+                    </span>
                   </p>
                 ) : null}
               </div>

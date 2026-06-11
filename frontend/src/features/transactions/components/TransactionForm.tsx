@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Check, Clock, Hash, Repeat2 } from 'lucide-react'
 import { useCreateTransaction } from '../hooks/useCreateTransaction.ts'
 import { useUpdateTransaction } from '../hooks/useUpdateTransaction.ts'
 import type {
@@ -21,8 +22,9 @@ import {
   FormActionButton,
   HeaderAmountInput,
   NoteInput,
+  TransactionFieldRow,
 } from './FormFields.tsx'
-import { AccountSelector, CategorySelector } from './Selectors.tsx'
+import { AccountSelector, CategorySelector, TransactionSelectField } from './Selectors.tsx'
 import { AddCategoryForm } from './AddCategoryForm.tsx'
 import { TransactionTypeSelector } from './TransactionTypeSelector.tsx'
 
@@ -34,6 +36,10 @@ type TransactionFormValues = {
   categoryId: string
   sourceAccountId: string
   destinationAccountId: string
+  settlementStatus: 'settled' | 'pending'
+  recurrenceType: 'none' | 'fixed' | 'repeat'
+  recurrenceFrequency: 'daily' | 'weekly' | 'monthly'
+  recurrenceQuantity: number
   note: string
 }
 
@@ -42,6 +48,15 @@ type TransactionFormProps = {
   mode?: 'create' | 'edit'
   initialTransaction?: Transaction
 }
+
+const recurrenceFrequencyOptions: Array<{
+  value: TransactionFormValues['recurrenceFrequency']
+  label: string
+}> = [
+  { value: 'daily', label: 'Diaria' },
+  { value: 'weekly', label: 'Semanal' },
+  { value: 'monthly', label: 'Mensal' },
+]
 
 function getFormSchema(type: TransactionType) {
   return z.object({
@@ -52,6 +67,10 @@ function getFormSchema(type: TransactionType) {
     categoryId: z.string(),
     sourceAccountId: z.string(),
     destinationAccountId: z.string(),
+    settlementStatus: z.enum(['settled', 'pending']),
+    recurrenceType: z.enum(['none', 'fixed', 'repeat']),
+    recurrenceFrequency: z.enum(['daily', 'weekly', 'monthly']),
+    recurrenceQuantity: z.number().int().min(1).max(120),
     note: z.string(),
   }).superRefine((values, context) => {
     if (type === 'transfer') {
@@ -82,13 +101,6 @@ function getFormSchema(type: TransactionType) {
       }
       return
     }
-    if (!values.accountId) {
-      context.addIssue({
-        code: 'custom',
-        path: ['accountId'],
-        message: 'Selecione uma conta.',
-      })
-    }
     if (!values.categoryId) {
       context.addIssue({
         code: 'custom',
@@ -108,6 +120,10 @@ function getDefaultValues(): TransactionFormValues {
     categoryId: '',
     sourceAccountId: '',
     destinationAccountId: '',
+    settlementStatus: 'settled',
+    recurrenceType: 'none',
+    recurrenceFrequency: 'monthly',
+    recurrenceQuantity: 2,
     note: '',
   }
 }
@@ -121,6 +137,10 @@ function getInitialValues(transaction: Transaction): TransactionFormValues {
     categoryId: transaction.categoryId ?? '',
     sourceAccountId: transaction.sourceAccountId ?? '',
     destinationAccountId: transaction.destinationAccountId ?? '',
+    settlementStatus: transaction.settlementStatus,
+    recurrenceType: transaction.recurrenceType,
+    recurrenceFrequency: transaction.recurrence?.frequency ?? 'monthly',
+    recurrenceQuantity: transaction.recurrence?.quantity ?? 2,
     note: transaction.note,
   }
 }
@@ -214,6 +234,47 @@ export function TransactionForm({
     mode === 'edit'
       ? updateTransactionMutation.isError
       : createTransactionMutation.isError
+  const recurrenceType = useWatch({ control, name: 'recurrenceType' })
+  const renderRecurrenceFrequencyField = () => (
+    <Controller
+      control={control}
+      name="recurrenceFrequency"
+      render={({ field }) => (
+        <TransactionSelectField
+          label="Periodo"
+          value={field.value}
+          placeholder="Selecione"
+          icon={<Clock className="h-5 w-5" aria-hidden="true" />}
+          options={recurrenceFrequencyOptions}
+          onChange={field.onChange}
+          chipClassName="bg-[#f4f1f7] text-[#2c2237]"
+          sheetTitle="Periodo"
+        />
+      )}
+    />
+  )
+  const renderRecurrenceQuantityField = () => (
+    <Controller
+      control={control}
+      name="recurrenceQuantity"
+      render={({ field }) => (
+        <TransactionFieldRow
+          label="Quantidade de parcelas"
+          icon={<Hash className="h-5 w-5" aria-hidden="true" />}
+          error={errors.recurrenceQuantity?.message}
+        >
+          <input
+            type="number"
+            min={1}
+            max={120}
+            className="h-11 w-full bg-transparent text-right text-[15px] font-semibold text-[#2c2237] outline-none placeholder:text-[#aaa2b4]"
+            value={field.value}
+            onChange={(event) => field.onChange(Number(event.target.value))}
+          />
+        </TransactionFieldRow>
+      )}
+    />
+  )
 
   return (
     <>
@@ -252,8 +313,28 @@ export function TransactionForm({
             | CreateIncomeTransactionPayload
             | CreateExpenseTransactionPayload = {
             ...base,
-            accountId: values.accountId,
+            accountId: values.accountId && values.accountId !== 'none' ? values.accountId : null,
             categoryId: values.categoryId,
+            settlementStatus: values.settlementStatus,
+            settledAt:
+              values.settlementStatus === 'settled' ? base.occurredAt : null,
+            recurrenceType: values.recurrenceType,
+            recurrence:
+              values.recurrenceType === 'none'
+                ? null
+                : {
+                    frequency: values.recurrenceFrequency,
+                    quantity:
+                      values.recurrenceType === 'repeat'
+                        ? values.recurrenceQuantity
+                        : null,
+                    startsAt: toOccurredAt(values.occurredOn),
+                    endsAt: null,
+                    dayOfMonth:
+                      values.recurrenceFrequency === 'monthly'
+                        ? fromDateInputValue(values.occurredOn).getDate()
+                        : null,
+                  },
           }
           if (mode === 'edit') {
             updateTransactionMutation.mutate(
@@ -302,6 +383,35 @@ export function TransactionForm({
         </div>
 
         <div className="-mt-6 overflow-hidden rounded-t-[28px] bg-white md:rounded-t-[32px]">
+          {type !== 'transfer' ? (
+            <Controller
+              control={control}
+              name="settlementStatus"
+              render={({ field }) => (
+                <label className="relative flex min-h-[64px] cursor-pointer items-center gap-3 border-b border-[#f0ebf5] px-4 py-3 md:px-5">
+                  <span className="grid h-10 w-10 flex-none place-items-center text-[#6f647b]">
+                    <Check className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1 text-[16px] font-normal text-[#2c2237]">
+                    {type === 'income' ? 'Recebido' : 'Pago'}
+                  </span>
+                  <span className="relative h-8 w-[52px] flex-none">
+                    <input
+                      type="checkbox"
+                      className="peer sr-only"
+                      checked={field.value === 'settled'}
+                      aria-label={type === 'income' ? 'Receita recebida' : 'Despesa paga'}
+                      onChange={(event) => {
+                        field.onChange(event.target.checked ? 'settled' : 'pending')
+                      }}
+                    />
+                    <span className="absolute inset-0 rounded-full bg-[#d8d3df] transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#7b2cff] peer-checked:bg-[#6818e8]" aria-hidden="true" />
+                    <span className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-[0_2px_6px_rgba(43,35,54,0.22)] transition-transform peer-checked:translate-x-5" aria-hidden="true" />
+                  </span>
+                </label>
+              )}
+            />
+          ) : null}
           <Controller
             control={control}
             name="occurredOn"
@@ -375,8 +485,38 @@ export function TransactionForm({
                     label="Conta"
                     value={field.value}
                     error={errors.accountId?.message}
+                    allowNone
                     onChange={field.onChange}
                   />
+                )}
+              />
+              <Controller
+                control={control}
+                name="recurrenceType"
+                render={({ field }) => (
+                  <>
+                    <div className="grid">
+                      <RecurrenceSwitchRow
+                        label="Fixa"
+                        checked={field.value === 'fixed'}
+                        onChange={(checked) => field.onChange(checked ? 'fixed' : 'none')}
+                      />
+                      {recurrenceType === 'fixed' ? renderRecurrenceFrequencyField() : null}
+                    </div>
+                    <div className="grid">
+                      <RecurrenceSwitchRow
+                        label="Parcelada"
+                        checked={field.value === 'repeat'}
+                        onChange={(checked) => field.onChange(checked ? 'repeat' : 'none')}
+                      />
+                      {recurrenceType === 'repeat' ? (
+                        <>
+                          {renderRecurrenceFrequencyField()}
+                          {renderRecurrenceQuantityField()}
+                        </>
+                      ) : null}
+                    </div>
+                  </>
                 )}
               />
             </>
@@ -406,5 +546,32 @@ export function TransactionForm({
         />
       ) : null}
     </>
+  )
+}
+
+type RecurrenceSwitchRowProps = {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}
+
+function RecurrenceSwitchRow({ label, checked, onChange }: RecurrenceSwitchRowProps) {
+  return (
+    <TransactionFieldRow
+      label={label}
+      icon={<Repeat2 className="h-5 w-5" aria-hidden="true" />}
+    >
+      <label className="relative ml-auto block h-8 w-[52px] flex-none cursor-pointer">
+        <input
+          type="checkbox"
+          className="peer sr-only"
+          checked={checked}
+          aria-label={label}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span className="absolute inset-0 rounded-full bg-[#d8d3df] transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#7b2cff] peer-checked:bg-[#6818e8]" aria-hidden="true" />
+        <span className="absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow-[0_2px_6px_rgba(43,35,54,0.22)] transition-transform peer-checked:translate-x-5" aria-hidden="true" />
+      </label>
+    </TransactionFieldRow>
   )
 }
