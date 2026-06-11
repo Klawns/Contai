@@ -91,35 +91,30 @@ func TestRegisterRoutesIncludesAuthenticatedTransactionRoutes(t *testing.T) {
 	}
 }
 
-func TestRegisterRoutesIncludesAuthenticatedCommitmentRoutes(t *testing.T) {
+func TestRegisterRoutesDoesNotRegisterLegacyCommitmentRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
 	registerRoutes(router, dependencies{})
 
-	routes := router.Routes()
-	expected := map[string]string{
-		http.MethodGet + " /api/payables":                  "",
-		http.MethodPost + " /api/payables":                 "",
-		http.MethodPatch + " /api/payables/:id":            "",
-		http.MethodPatch + " /api/payables/:id/pay":        "",
-		http.MethodPatch + " /api/payables/:id/cancel":     "",
-		http.MethodGet + " /api/receivables":               "",
-		http.MethodPost + " /api/receivables":              "",
-		http.MethodPatch + " /api/receivables/:id":         "",
-		http.MethodPatch + " /api/receivables/:id/receive": "",
-		http.MethodPatch + " /api/receivables/:id/cancel":  "",
+	legacyRoutes := map[string]struct{}{
+		http.MethodGet + " /api/payables":                  {},
+		http.MethodPost + " /api/payables":                 {},
+		http.MethodPatch + " /api/payables/:id":            {},
+		http.MethodPatch + " /api/payables/:id/pay":        {},
+		http.MethodPatch + " /api/payables/:id/cancel":     {},
+		http.MethodGet + " /api/receivables":               {},
+		http.MethodPost + " /api/receivables":              {},
+		http.MethodPatch + " /api/receivables/:id":         {},
+		http.MethodPatch + " /api/receivables/:id/receive": {},
+		http.MethodPatch + " /api/receivables/:id/cancel":  {},
 	}
 
-	for _, route := range routes {
+	for _, route := range router.Routes() {
 		key := route.Method + " " + route.Path
-		if _, ok := expected[key]; ok {
-			delete(expected, key)
+		if _, ok := legacyRoutes[key]; ok {
+			t.Fatalf("expected legacy commitment route to be inactive, got %s", key)
 		}
-	}
-
-	if len(expected) > 0 {
-		t.Fatalf("expected commitment routes to be registered, missing %#v", expected)
 	}
 
 	recorder := httptest.NewRecorder()
@@ -127,8 +122,8 @@ func TestRegisterRoutesIncludesAuthenticatedCommitmentRoutes(t *testing.T) {
 
 	router.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusUnauthorized {
-		t.Fatalf("expected commitment route to require authentication, got %d", recorder.Code)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected legacy commitment route to be inactive, got %d", recorder.Code)
 	}
 }
 

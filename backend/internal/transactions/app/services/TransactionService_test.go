@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -27,12 +28,14 @@ func TestTransactionService_CreateExpenseUsesUnitOfWorkAndUpdatesBalance(t *test
 	service := NewTransactionService(transactionRepository, accountRepository, categoryRepository, fakeTransactionIDGenerator{}, unitOfWork)
 
 	transaction, err := service.CreateExpense(context.Background(), ports.CreateExpenseInput{
-		UserID:      "user-id",
-		Description: "Groceries",
-		Amount:      financedomain.NewMoney(3500),
-		OccurredAt:  time.Now(),
-		AccountID:   "account-id",
-		CategoryID:  "category-id",
+		UserID:           "user-id",
+		Description:      "Groceries",
+		Amount:           financedomain.NewMoney(3500),
+		OccurredAt:       time.Now(),
+		AccountID:        accountIDPtr("account-id"),
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusSettled,
+		RecurrenceType:   domain.RecurrenceTypeNone,
 	})
 
 	if err != nil {
@@ -61,12 +64,14 @@ func TestTransactionService_CreateIncomeRejectsExpenseCategory(t *testing.T) {
 	)
 
 	_, err := service.CreateIncome(context.Background(), ports.CreateIncomeInput{
-		UserID:      "user-id",
-		Description: "Salary",
-		Amount:      financedomain.NewMoney(10000),
-		OccurredAt:  time.Now(),
-		AccountID:   "account-id",
-		CategoryID:  "category-id",
+		UserID:           "user-id",
+		Description:      "Salary",
+		Amount:           financedomain.NewMoney(10000),
+		OccurredAt:       time.Now(),
+		AccountID:        accountIDPtr("account-id"),
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusSettled,
+		RecurrenceType:   domain.RecurrenceTypeNone,
 	})
 
 	if !errors.Is(err, domain.ErrTransactionCategoryTypeMismatch) {
@@ -81,8 +86,12 @@ func TestTransactionService_UpdateRejectsManagedOrigin(t *testing.T) {
 		"Invoice",
 		financedomain.NewMoney(1000),
 		time.Now(),
-		"account-id",
+		accountIDPtr("account-id"),
 		"category-id",
+		domain.SettlementStatusSettled,
+		nil,
+		domain.RecurrenceTypeNone,
+		nil,
 		"",
 	)
 	if err != nil {
@@ -100,17 +109,192 @@ func TestTransactionService_UpdateRejectsManagedOrigin(t *testing.T) {
 	)
 
 	_, err = service.UpdateTransaction(context.Background(), ports.UpdateTransactionInput{
-		UserID:        "user-id",
-		TransactionID: "transaction-id",
-		Description:   "Invoice",
-		Amount:        financedomain.NewMoney(1000),
-		OccurredAt:    time.Now(),
-		AccountID:     "account-id",
-		CategoryID:    "category-id",
+		UserID:           "user-id",
+		TransactionID:    "transaction-id",
+		Description:      "Invoice",
+		Amount:           financedomain.NewMoney(1000),
+		OccurredAt:       time.Now(),
+		AccountID:        accountIDPtr("account-id"),
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusSettled,
+		RecurrenceType:   domain.RecurrenceTypeNone,
 	})
 
 	if !errors.Is(err, domain.ErrTransactionManagedOrigin) {
 		t.Fatalf("expected managed origin error, got %v", err)
+	}
+}
+
+func TestTransactionService_CreatePendingExpenseWithoutAccountDoesNotUpdateBalance(t *testing.T) {
+	account := validAccount(t, "account-id", financedomain.NewMoney(10000))
+	category := validCategory(t, "category-id", categorydomain.CategoryTypeExpense)
+	accountRepository := &fakeAccountRepository{accounts: map[accountdomain.AccountID]*accountdomain.Account{"account-id": &account}}
+	service := NewTransactionService(
+		&fakeTransactionRepository{},
+		accountRepository,
+		&fakeCategoryRepository{categories: map[categorydomain.CategoryID]*categorydomain.Category{"category-id": &category}},
+		fakeTransactionIDGenerator{},
+		&fakeUnitOfWork{},
+	)
+
+	transaction, err := service.CreateExpense(context.Background(), ports.CreateExpenseInput{
+		UserID:           "user-id",
+		Description:      "Groceries",
+		Amount:           financedomain.NewMoney(3500),
+		OccurredAt:       time.Now(),
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusPending,
+		RecurrenceType:   domain.RecurrenceTypeNone,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if transaction.AccountID != nil {
+		t.Fatalf("expected nil account, got %#v", transaction.AccountID)
+	}
+	if accountRepository.accounts["account-id"].CurrentBalance.Cents() != 10000 {
+		t.Fatalf("expected unchanged balance 10000, got %d", accountRepository.accounts["account-id"].CurrentBalance.Cents())
+	}
+}
+
+func TestTransactionService_UpdateSettlesPendingExpenseWithAccount(t *testing.T) {
+	category := validCategory(t, "category-id", categorydomain.CategoryTypeExpense)
+	account := validAccount(t, "account-id", financedomain.NewMoney(10000))
+	transaction, err := domain.NewExpense(
+		"transaction-id",
+		"user-id",
+		"Groceries",
+		financedomain.NewMoney(3500),
+		time.Now(),
+		nil,
+		"category-id",
+		domain.SettlementStatusPending,
+		nil,
+		domain.RecurrenceTypeNone,
+		nil,
+		"",
+	)
+	if err != nil {
+		t.Fatalf("expected valid transaction, got %v", err)
+	}
+	accountRepository := &fakeAccountRepository{accounts: map[accountdomain.AccountID]*accountdomain.Account{"account-id": &account}}
+	service := NewTransactionService(
+		&fakeTransactionRepository{found: &transaction},
+		accountRepository,
+		&fakeCategoryRepository{categories: map[categorydomain.CategoryID]*categorydomain.Category{"category-id": &category}},
+		fakeTransactionIDGenerator{},
+		&fakeUnitOfWork{},
+	)
+
+	updated, err := service.UpdateTransaction(context.Background(), ports.UpdateTransactionInput{
+		UserID:           "user-id",
+		TransactionID:    "transaction-id",
+		Description:      "Groceries",
+		Amount:           financedomain.NewMoney(3500),
+		OccurredAt:       transaction.OccurredAt,
+		AccountID:        accountIDPtr("account-id"),
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusSettled,
+		RecurrenceType:   domain.RecurrenceTypeNone,
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if updated.SettlementStatus != domain.SettlementStatusSettled || updated.SettledAt == nil {
+		t.Fatalf("expected settled transaction, got %#v", updated)
+	}
+	if accountRepository.accounts["account-id"].CurrentBalance.Cents() != 6500 {
+		t.Fatalf("expected balance 6500, got %d", accountRepository.accounts["account-id"].CurrentBalance.Cents())
+	}
+}
+
+func TestTransactionService_CreateRepeatExpenseCreatesFiniteOccurrences(t *testing.T) {
+	category := validCategory(t, "category-id", categorydomain.CategoryTypeExpense)
+	transactionRepository := &fakeTransactionRepository{}
+	startsAt := time.Date(2026, 1, 31, 12, 0, 0, 0, time.UTC)
+	quantity := 3
+	dayOfMonth := 31
+	service := NewTransactionService(
+		transactionRepository,
+		&fakeAccountRepository{accounts: map[accountdomain.AccountID]*accountdomain.Account{}},
+		&fakeCategoryRepository{categories: map[categorydomain.CategoryID]*categorydomain.Category{"category-id": &category}},
+		&sequenceTransactionIDGenerator{},
+		&fakeUnitOfWork{},
+	)
+
+	created, err := service.CreateExpense(context.Background(), ports.CreateExpenseInput{
+		UserID:           "user-id",
+		Description:      "Subscription",
+		Amount:           financedomain.NewMoney(2000),
+		OccurredAt:       startsAt,
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusPending,
+		RecurrenceType:   domain.RecurrenceTypeRepeat,
+		Recurrence: &domain.Recurrence{
+			Frequency:  domain.RecurrenceFrequencyMonthly,
+			Quantity:   &quantity,
+			StartsAt:   startsAt,
+			DayOfMonth: &dayOfMonth,
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if created.ID != "transaction-1" {
+		t.Fatalf("expected first created transaction to be returned, got %#v", created)
+	}
+	if len(transactionRepository.createdTransactions) != 3 {
+		t.Fatalf("expected 3 created transactions, got %d", len(transactionRepository.createdTransactions))
+	}
+	expectedDates := []time.Time{
+		time.Date(2026, 1, 31, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, 2, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, 3, 31, 12, 0, 0, 0, time.UTC),
+	}
+	for index, expected := range expectedDates {
+		if !transactionRepository.createdTransactions[index].OccurredAt.Equal(expected) {
+			t.Fatalf("expected occurrence %d at %s, got %s", index, expected, transactionRepository.createdTransactions[index].OccurredAt)
+		}
+	}
+}
+
+func TestTransactionService_CreateFixedExpensePersistsOnlyRule(t *testing.T) {
+	category := validCategory(t, "category-id", categorydomain.CategoryTypeExpense)
+	transactionRepository := &fakeTransactionRepository{}
+	startsAt := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
+	service := NewTransactionService(
+		transactionRepository,
+		&fakeAccountRepository{accounts: map[accountdomain.AccountID]*accountdomain.Account{}},
+		&fakeCategoryRepository{categories: map[categorydomain.CategoryID]*categorydomain.Category{"category-id": &category}},
+		&sequenceTransactionIDGenerator{},
+		&fakeUnitOfWork{},
+	)
+
+	_, err := service.CreateExpense(context.Background(), ports.CreateExpenseInput{
+		UserID:           "user-id",
+		Description:      "Rent",
+		Amount:           financedomain.NewMoney(200000),
+		OccurredAt:       startsAt,
+		CategoryID:       "category-id",
+		SettlementStatus: domain.SettlementStatusPending,
+		RecurrenceType:   domain.RecurrenceTypeFixed,
+		Recurrence: &domain.Recurrence{
+			Frequency: domain.RecurrenceFrequencyMonthly,
+			StartsAt:  startsAt,
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(transactionRepository.createdTransactions) != 1 {
+		t.Fatalf("expected fixed recurrence to create one transaction, got %d", len(transactionRepository.createdTransactions))
+	}
+	if transactionRepository.createdTransactions[0].RecurrenceType != domain.RecurrenceTypeFixed {
+		t.Fatalf("expected fixed recurrence rule to be persisted, got %#v", transactionRepository.createdTransactions[0])
 	}
 }
 
@@ -132,6 +316,10 @@ func validCategory(t *testing.T, id categorydomain.CategoryID, categoryType cate
 	return category
 }
 
+func accountIDPtr(value accountdomain.AccountID) *accountdomain.AccountID {
+	return &value
+}
+
 type fakeUnitOfWork struct {
 	called bool
 }
@@ -147,10 +335,20 @@ func (generator fakeTransactionIDGenerator) NewTransactionID() domain.Transactio
 	return "transaction-id"
 }
 
+type sequenceTransactionIDGenerator struct {
+	next int
+}
+
+func (generator *sequenceTransactionIDGenerator) NewTransactionID() domain.TransactionID {
+	generator.next++
+	return domain.TransactionID("transaction-" + strconv.Itoa(generator.next))
+}
+
 type fakeTransactionRepository struct {
-	created *domain.Transaction
-	updated *domain.Transaction
-	found   *domain.Transaction
+	created             *domain.Transaction
+	createdTransactions []domain.Transaction
+	updated             *domain.Transaction
+	found               *domain.Transaction
 }
 
 func (repository *fakeTransactionRepository) WithTx(tx databaseports.TxHandle) ports.TransactionRepository {
@@ -159,6 +357,7 @@ func (repository *fakeTransactionRepository) WithTx(tx databaseports.TxHandle) p
 
 func (repository *fakeTransactionRepository) CreateTransaction(ctx context.Context, transaction *domain.Transaction) (*domain.Transaction, error) {
 	repository.created = transaction
+	repository.createdTransactions = append(repository.createdTransactions, *transaction)
 	return transaction, nil
 }
 

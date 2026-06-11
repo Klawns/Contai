@@ -195,6 +195,7 @@ type dashboardTransactionEntity struct {
 	DestinationAccountID *string   `gorm:"type:uuid;index"`
 	CategoryID           *string   `gorm:"type:uuid;index"`
 	Status               string    `gorm:"not null;index"`
+	SettlementStatus     string    `gorm:"not null;default:settled;index"`
 	Note                 string    `gorm:"not null"`
 	RemovedAt            *time.Time
 	CreatedAt            time.Time

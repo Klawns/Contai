@@ -20,19 +20,21 @@ func (CreditCardEntity) TableName() string {
 }
 
 type CardPurchaseEntity struct {
-	ID               string `gorm:"primaryKey;type:uuid"`
-	UserID           string `gorm:"type:uuid;not null;index"`
-	CardID           string `gorm:"type:uuid;not null;index"`
-	CategoryID       string `gorm:"type:uuid;not null;index"`
-	Description      string `gorm:"not null"`
-	TotalAmount      int64  `gorm:"not null"`
-	PurchaseDate     time.Time
-	InstallmentCount int
-	Note             string
-	Status           string `gorm:"not null;index"`
-	CanceledAt       *time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                string `gorm:"primaryKey;type:uuid"`
+	UserID            string `gorm:"type:uuid;not null;index"`
+	CardID            string `gorm:"type:uuid;not null;index"`
+	CategoryID        string `gorm:"type:uuid;not null;index"`
+	Description       string `gorm:"not null"`
+	TotalAmount       int64  `gorm:"not null"`
+	PurchaseDate      time.Time
+	PurchaseType      string `gorm:"not null;default:single"`
+	InstallmentCount  int
+	FirstInvoiceMonth time.Time `gorm:"index"`
+	Note              string
+	Status            string `gorm:"not null;index"`
+	CanceledAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 func (CardPurchaseEntity) TableName() string {

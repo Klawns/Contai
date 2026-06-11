@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"time"
 
 	accountports "contai/internal/account/app/ports"
 	accountdomain "contai/internal/account/domain"
@@ -34,7 +35,7 @@ func NewTransactionService(transactionRepository ports.TransactionRepository, ac
 }
 
 func (service TransactionService) CreateIncome(ctx context.Context, input ports.CreateIncomeInput) (ports.TransactionDTO, error) {
-	transaction, err := domain.NewIncome(service.idGenerator.NewTransactionID(), input.UserID, input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.Note)
+	transaction, err := domain.NewIncome(service.idGenerator.NewTransactionID(), input.UserID, input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.SettlementStatus, input.SettledAt, input.RecurrenceType, input.Recurrence, input.Note)
 	if err != nil {
 		return ports.TransactionDTO{}, err
 	}
@@ -47,7 +48,7 @@ func (service TransactionService) CreateIncome(ctx context.Context, input ports.
 }
 
 func (service TransactionService) CreateExpense(ctx context.Context, input ports.CreateExpenseInput) (ports.TransactionDTO, error) {
-	transaction, err := domain.NewExpense(service.idGenerator.NewTransactionID(), input.UserID, input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.Note)
+	transaction, err := domain.NewExpense(service.idGenerator.NewTransactionID(), input.UserID, input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.SettlementStatus, input.SettledAt, input.RecurrenceType, input.Recurrence, input.Note)
 	if err != nil {
 		return ports.TransactionDTO{}, err
 	}
@@ -73,6 +74,9 @@ func (service TransactionService) ListTransactions(ctx context.Context, input po
 	}
 	if input.Type != nil && !isValidTransactionType(*input.Type) {
 		return nil, domain.ErrTransactionInvalidType
+	}
+	if input.SettlementStatus != nil && !isValidSettlementStatus(*input.SettlementStatus) {
+		return nil, domain.ErrTransactionInvalidSettlementStatus
 	}
 	if input.Limit < 0 || input.Offset < 0 {
 		return nil, domain.ErrTransactionInvalidType
@@ -112,11 +116,11 @@ func (service TransactionService) UpdateTransaction(ctx context.Context, input p
 
 		switch transaction.Type {
 		case domain.TransactionTypeIncome:
-			if err := transaction.EditIncome(input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.Note); err != nil {
+			if err := transaction.EditIncome(input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.SettlementStatus, input.SettledAt, input.RecurrenceType, input.Recurrence, input.Note); err != nil {
 				return err
 			}
 		case domain.TransactionTypeExpense:
-			if err := transaction.EditExpense(input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.Note); err != nil {
+			if err := transaction.EditExpense(input.Description, input.Amount, input.OccurredAt, input.AccountID, input.CategoryID, input.SettlementStatus, input.SettledAt, input.RecurrenceType, input.Recurrence, input.Note); err != nil {
 				return err
 			}
 		case domain.TransactionTypeTransfer:
@@ -183,23 +187,82 @@ func (service TransactionService) create(ctx context.Context, transaction domain
 		accountRepository := service.accountRepository.WithTx(tx)
 		categoryRepository := service.categoryRepository.WithTx(tx)
 
-		if err := service.validateReferences(txCtx, accountRepository, categoryRepository, transaction); err != nil {
-			return err
-		}
-		if err := service.applyEffects(txCtx, accountRepository, transaction.UserID, transaction.BalanceEffects()); err != nil {
-			return err
-		}
-		created, err := transactionRepository.CreateTransaction(txCtx, &transaction)
+		occurrences, err := service.expandRepeatOccurrences(transaction)
 		if err != nil {
 			return err
 		}
-		dto = toTransactionDTO(*created)
+		for index := range occurrences {
+			if err := service.validateReferences(txCtx, accountRepository, categoryRepository, occurrences[index]); err != nil {
+				return err
+			}
+			if err := service.applyEffects(txCtx, accountRepository, occurrences[index].UserID, occurrences[index].BalanceEffects()); err != nil {
+				return err
+			}
+			created, err := transactionRepository.CreateTransaction(txCtx, &occurrences[index])
+			if err != nil {
+				return err
+			}
+			if index == 0 {
+				dto = toTransactionDTO(*created)
+			}
+		}
 		return nil
 	})
 	if err != nil {
 		return ports.TransactionDTO{}, err
 	}
 	return dto, nil
+}
+
+func (service TransactionService) expandRepeatOccurrences(transaction domain.Transaction) ([]domain.Transaction, error) {
+	if transaction.RecurrenceType != domain.RecurrenceTypeRepeat || transaction.Recurrence == nil || transaction.Recurrence.Quantity == nil {
+		return []domain.Transaction{transaction}, nil
+	}
+
+	quantity := *transaction.Recurrence.Quantity
+	occurrences := make([]domain.Transaction, 0, quantity)
+	for index := 0; index < quantity; index++ {
+		occurrence := transaction
+		if index > 0 {
+			occurrence.ID = service.idGenerator.NewTransactionID()
+		}
+		occurredAt := occurrenceDate(*transaction.Recurrence, index)
+		shift := occurredAt.Sub(transaction.OccurredAt)
+		occurrence.OccurredAt = occurredAt
+		if transaction.SettledAt != nil {
+			settledAt := transaction.SettledAt.Add(shift)
+			occurrence.SettledAt = &settledAt
+		}
+		occurrences = append(occurrences, occurrence)
+	}
+	return occurrences, nil
+}
+
+func occurrenceDate(recurrence domain.Recurrence, index int) time.Time {
+	switch recurrence.Frequency {
+	case domain.RecurrenceFrequencyDaily:
+		return recurrence.StartsAt.AddDate(0, 0, index)
+	case domain.RecurrenceFrequencyWeekly:
+		return recurrence.StartsAt.AddDate(0, 0, index*7)
+	case domain.RecurrenceFrequencyMonthly:
+		day := recurrence.StartsAt.Day()
+		if recurrence.DayOfMonth != nil {
+			day = *recurrence.DayOfMonth
+		}
+		return monthlyOccurrenceDate(recurrence.StartsAt, index, day)
+	default:
+		return recurrence.StartsAt
+	}
+}
+
+func monthlyOccurrenceDate(startsAt time.Time, index int, day int) time.Time {
+	firstOfMonth := time.Date(startsAt.Year(), startsAt.Month(), 1, startsAt.Hour(), startsAt.Minute(), startsAt.Second(), startsAt.Nanosecond(), startsAt.Location())
+	targetMonth := firstOfMonth.AddDate(0, index, 0)
+	lastDay := time.Date(targetMonth.Year(), targetMonth.Month()+1, 0, startsAt.Hour(), startsAt.Minute(), startsAt.Second(), startsAt.Nanosecond(), startsAt.Location()).Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(targetMonth.Year(), targetMonth.Month(), day, startsAt.Hour(), startsAt.Minute(), startsAt.Second(), startsAt.Nanosecond(), startsAt.Location())
 }
 
 func (service TransactionService) validateReferences(ctx context.Context, accountRepository accountports.AccountRepository, categoryRepository categoryports.CategoryRepository, transaction domain.Transaction) error {
@@ -265,6 +328,9 @@ func accountIDs(transaction domain.Transaction) []accountdomain.AccountID {
 	if transaction.Type == domain.TransactionTypeTransfer {
 		return []accountdomain.AccountID{*transaction.SourceAccountID, *transaction.DestinationAccountID}
 	}
+	if transaction.AccountID == nil {
+		return []accountdomain.AccountID{}
+	}
 	return []accountdomain.AccountID{*transaction.AccountID}
 }
 
@@ -272,6 +338,10 @@ func isValidTransactionType(transactionType domain.TransactionType) bool {
 	return transactionType == domain.TransactionTypeIncome ||
 		transactionType == domain.TransactionTypeExpense ||
 		transactionType == domain.TransactionTypeTransfer
+}
+
+func isValidSettlementStatus(status domain.SettlementStatus) bool {
+	return status == domain.SettlementStatusSettled || status == domain.SettlementStatusPending
 }
 
 func toTransactionDTO(transaction domain.Transaction) ports.TransactionDTO {
@@ -289,6 +359,10 @@ func toTransactionDTO(transaction domain.Transaction) ports.TransactionDTO {
 		Status:               transaction.Status,
 		OriginType:           transaction.OriginType,
 		OriginID:             transaction.OriginID,
+		SettlementStatus:     transaction.SettlementStatus,
+		SettledAt:            transaction.SettledAt,
+		RecurrenceType:       transaction.RecurrenceType,
+		Recurrence:           transaction.Recurrence,
 		Note:                 transaction.Note,
 		RemovedAt:            transaction.RemovedAt,
 		CreatedAt:            transaction.CreatedAt,

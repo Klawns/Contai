@@ -241,14 +241,19 @@ func (service CommitmentService) newSettlementTransaction(
 ) (transactiondomain.Transaction, error) {
 	switch input.Type {
 	case domain.CommitmentTypePayable:
+		accountID := input.AccountID
 		transaction, err := transactiondomain.NewExpense(
 			service.transactionIDGenerator.NewTransactionID(),
 			input.UserID,
 			commitment.Description,
 			input.Amount,
 			input.SettledAt,
-			input.AccountID,
+			&accountID,
 			input.CategoryID,
+			transactiondomain.SettlementStatusSettled,
+			&input.SettledAt,
+			transactiondomain.RecurrenceTypeNone,
+			nil,
 			input.Note,
 		)
 		if err != nil {
@@ -257,14 +262,19 @@ func (service CommitmentService) newSettlementTransaction(
 		err = transaction.SetOrigin(transactiondomain.TransactionOriginTypePayable, string(commitment.ID))
 		return transaction, err
 	case domain.CommitmentTypeReceivable:
+		accountID := input.AccountID
 		transaction, err := transactiondomain.NewIncome(
 			service.transactionIDGenerator.NewTransactionID(),
 			input.UserID,
 			commitment.Description,
 			input.Amount,
 			input.SettledAt,
-			input.AccountID,
+			&accountID,
 			input.CategoryID,
+			transactiondomain.SettlementStatusSettled,
+			&input.SettledAt,
+			transactiondomain.RecurrenceTypeNone,
+			nil,
 			input.Note,
 		)
 		if err != nil {

@@ -121,15 +121,34 @@ func (handler Handler) CreatePurchase(ctx *gin.Context) {
 		writeError(ctx, domain.ErrPurchaseDateRequired)
 		return
 	}
+	firstInvoiceMonth := domain.FirstDayOfMonth(purchaseDate)
+	if request.FirstInvoiceMonth != "" {
+		parsed, err := parseYearMonth(request.FirstInvoiceMonth)
+		if err != nil {
+			writeError(ctx, domain.ErrPurchaseFirstInvoiceMonthRequired)
+			return
+		}
+		firstInvoiceMonth = parsed
+	}
+	purchaseType := domain.PurchaseType(request.PurchaseType)
+	if purchaseType == "" {
+		if request.InstallmentCount > 1 {
+			purchaseType = domain.PurchaseTypeInstallment
+		} else {
+			purchaseType = domain.PurchaseTypeSingle
+		}
+	}
 	purchase, err := handler.service.CreatePurchase(ctx.Request.Context(), ports.CreatePurchaseInput{
-		UserID:           authenticatedUser.UserID,
-		CardID:           domain.CreditCardID(ctx.Param("cardID")),
-		CategoryID:       categorydomain.CategoryID(request.CategoryID),
-		Description:      request.Description,
-		TotalAmount:      financedomain.NewMoney(request.TotalAmount),
-		PurchaseDate:     purchaseDate,
-		InstallmentCount: request.InstallmentCount,
-		Note:             request.Note,
+		UserID:            authenticatedUser.UserID,
+		CardID:            domain.CreditCardID(ctx.Param("cardID")),
+		CategoryID:        categorydomain.CategoryID(request.CategoryID),
+		Description:       request.Description,
+		TotalAmount:       financedomain.NewMoney(request.TotalAmount),
+		PurchaseDate:      purchaseDate,
+		PurchaseType:      purchaseType,
+		InstallmentCount:  request.InstallmentCount,
+		FirstInvoiceMonth: firstInvoiceMonth,
+		Note:              request.Note,
 	})
 	if err != nil {
 		writeError(ctx, err)
@@ -280,7 +299,9 @@ func writeError(ctx *gin.Context, err error) {
 		errors.Is(err, domain.ErrPurchaseDescriptionRequired),
 		errors.Is(err, domain.ErrPurchaseAmountInvalid),
 		errors.Is(err, domain.ErrPurchaseDateRequired),
+		errors.Is(err, domain.ErrPurchaseTypeInvalid),
 		errors.Is(err, domain.ErrPurchaseInstallmentCountInvalid),
+		errors.Is(err, domain.ErrPurchaseFirstInvoiceMonthRequired),
 		errors.Is(err, domain.ErrPurchaseInvalidStatus),
 		errors.Is(err, domain.ErrInstallmentInvalid),
 		errors.Is(err, domain.ErrInvoiceIDRequired),

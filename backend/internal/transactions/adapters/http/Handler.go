@@ -62,15 +62,34 @@ func (handler Handler) CreateIncome(ctx *gin.Context) {
 		writeError(ctx, err)
 		return
 	}
+	settlementStatus, err := parseRequiredSettlementStatus(request.SettlementStatus)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	settledAt, err := parseOptionalTime(request.SettledAt)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	recurrenceType, recurrence, err := parseRecurrencePayload(request.RecurrenceType, request.Recurrence)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
 
 	transaction, err := handler.transactionService.CreateIncome(ctx.Request.Context(), ports.CreateIncomeInput{
-		UserID:      authenticatedUser.UserID,
-		Description: request.Description,
-		Amount:      moneyFromCents(request.Amount),
-		OccurredAt:  occurredAt,
-		AccountID:   accountdomain.AccountID(request.AccountID),
-		CategoryID:  categorydomain.CategoryID(request.CategoryID),
-		Note:        request.Note,
+		UserID:           authenticatedUser.UserID,
+		Description:      request.Description,
+		Amount:           moneyFromCents(request.Amount),
+		OccurredAt:       occurredAt,
+		AccountID:        parseOptionalAccountID(request.AccountID),
+		CategoryID:       categorydomain.CategoryID(request.CategoryID),
+		SettlementStatus: settlementStatus,
+		SettledAt:        settledAt,
+		RecurrenceType:   recurrenceType,
+		Recurrence:       recurrence,
+		Note:             request.Note,
 	})
 	if err != nil {
 		writeError(ctx, err)
@@ -95,15 +114,34 @@ func (handler Handler) CreateExpense(ctx *gin.Context) {
 		writeError(ctx, err)
 		return
 	}
+	settlementStatus, err := parseRequiredSettlementStatus(request.SettlementStatus)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	settledAt, err := parseOptionalTime(request.SettledAt)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	recurrenceType, recurrence, err := parseRecurrencePayload(request.RecurrenceType, request.Recurrence)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
 
 	transaction, err := handler.transactionService.CreateExpense(ctx.Request.Context(), ports.CreateExpenseInput{
-		UserID:      authenticatedUser.UserID,
-		Description: request.Description,
-		Amount:      moneyFromCents(request.Amount),
-		OccurredAt:  occurredAt,
-		AccountID:   accountdomain.AccountID(request.AccountID),
-		CategoryID:  categorydomain.CategoryID(request.CategoryID),
-		Note:        request.Note,
+		UserID:           authenticatedUser.UserID,
+		Description:      request.Description,
+		Amount:           moneyFromCents(request.Amount),
+		OccurredAt:       occurredAt,
+		AccountID:        parseOptionalAccountID(request.AccountID),
+		CategoryID:       categorydomain.CategoryID(request.CategoryID),
+		SettlementStatus: settlementStatus,
+		SettledAt:        settledAt,
+		RecurrenceType:   recurrenceType,
+		Recurrence:       recurrence,
+		Note:             request.Note,
 	})
 	if err != nil {
 		writeError(ctx, err)
@@ -161,6 +199,25 @@ func (handler Handler) UpdateTransaction(ctx *gin.Context) {
 		writeError(ctx, err)
 		return
 	}
+	var settlementStatus domain.SettlementStatus
+	if request.SettlementStatus != nil {
+		parsedStatus, err := parseRequiredSettlementStatus(request.SettlementStatus)
+		if err != nil {
+			writeError(ctx, err)
+			return
+		}
+		settlementStatus = parsedStatus
+	}
+	settledAt, err := parseOptionalTime(request.SettledAt)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	recurrenceType, recurrence, err := parseRecurrencePayload(request.RecurrenceType, request.Recurrence)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
 
 	transaction, err := handler.transactionService.UpdateTransaction(ctx.Request.Context(), ports.UpdateTransactionInput{
 		UserID:               authenticatedUser.UserID,
@@ -168,10 +225,14 @@ func (handler Handler) UpdateTransaction(ctx *gin.Context) {
 		Description:          request.Description,
 		Amount:               moneyFromCents(request.Amount),
 		OccurredAt:           occurredAt,
-		AccountID:            accountdomain.AccountID(request.AccountID),
+		AccountID:            parseOptionalAccountID(request.AccountID),
 		SourceAccountID:      accountdomain.AccountID(request.SourceAccountID),
 		DestinationAccountID: accountdomain.AccountID(request.DestinationAccountID),
 		CategoryID:           categorydomain.CategoryID(request.CategoryID),
+		SettlementStatus:     settlementStatus,
+		SettledAt:            settledAt,
+		RecurrenceType:       recurrenceType,
+		Recurrence:           recurrence,
 		Note:                 request.Note,
 	})
 	if err != nil {
@@ -216,8 +277,12 @@ func parseListInput(ctx *gin.Context) (ports.ListTransactionsInput, error) {
 		input.EndAt = &parsed
 	}
 	if value := ctx.Query("accountId"); value != "" {
-		accountID := accountdomain.AccountID(value)
-		input.AccountID = &accountID
+		if value == "none" {
+			input.AccountIDNone = true
+		} else {
+			accountID := accountdomain.AccountID(value)
+			input.AccountID = &accountID
+		}
 	}
 	if value := ctx.Query("categoryId"); value != "" {
 		categoryID := categorydomain.CategoryID(value)
@@ -228,6 +293,11 @@ func parseListInput(ctx *gin.Context) (ports.ListTransactionsInput, error) {
 		return input, err
 	}
 	input.Type = transactionType
+	settlementStatus, err := parseSettlementStatus(ctx.Query("settlementStatus"))
+	if err != nil {
+		return input, err
+	}
+	input.SettlementStatus = settlementStatus
 	limit, err := parseOptionalNonNegativeInt(ctx.Query("limit"))
 	if err != nil {
 		return input, err
@@ -289,7 +359,11 @@ func writeError(ctx *gin.Context, err error) {
 		errors.Is(err, domain.ErrTransactionTransferAccountsMustBeDifferent),
 		errors.Is(err, domain.ErrTransactionCategoryIDRequired),
 		errors.Is(err, domain.ErrTransactionInvalidType),
-		errors.Is(err, domain.ErrTransactionInvalidStatus):
+		errors.Is(err, domain.ErrTransactionInvalidStatus),
+		errors.Is(err, domain.ErrTransactionSettlementStatusRequired),
+		errors.Is(err, domain.ErrTransactionInvalidSettlementStatus),
+		errors.Is(err, domain.ErrTransactionInvalidSettledAt),
+		errors.Is(err, domain.ErrTransactionInvalidRecurrence):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction"})
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})

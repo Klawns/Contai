@@ -28,19 +28,21 @@ type CreditCardDTO struct {
 }
 
 type PurchaseDTO struct {
-	ID               domain.PurchaseID
-	UserID           userdomain.UserID
-	CardID           domain.CreditCardID
-	CategoryID       categorydomain.CategoryID
-	Description      string
-	TotalAmount      financedomain.Money
-	PurchaseDate     time.Time
-	InstallmentCount int
-	Note             string
-	Status           domain.PurchaseStatus
-	CanceledAt       *time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                domain.PurchaseID
+	UserID            userdomain.UserID
+	CardID            domain.CreditCardID
+	CategoryID        categorydomain.CategoryID
+	Description       string
+	TotalAmount       financedomain.Money
+	PurchaseDate      time.Time
+	PurchaseType      domain.PurchaseType
+	InstallmentCount  int
+	FirstInvoiceMonth time.Time
+	Note              string
+	Status            domain.PurchaseStatus
+	CanceledAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type InstallmentDTO struct {
@@ -100,14 +102,16 @@ type CardIDInput struct {
 }
 
 type CreatePurchaseInput struct {
-	UserID           userdomain.UserID
-	CardID           domain.CreditCardID
-	CategoryID       categorydomain.CategoryID
-	Description      string
-	TotalAmount      financedomain.Money
-	PurchaseDate     time.Time
-	InstallmentCount int
-	Note             string
+	UserID            userdomain.UserID
+	CardID            domain.CreditCardID
+	CategoryID        categorydomain.CategoryID
+	Description       string
+	TotalAmount       financedomain.Money
+	PurchaseDate      time.Time
+	PurchaseType      domain.PurchaseType
+	InstallmentCount  int
+	FirstInvoiceMonth time.Time
+	Note              string
 }
 
 type PurchaseIDInput struct {

@@ -122,6 +122,7 @@ func (repository Repository) FindMonthlyIncomeExpense(ctx context.Context, userI
 		`, string(transactiondomain.TransactionTypeIncome), string(transactiondomain.TransactionTypeExpense)).
 		Where("user_id = ?", string(userID)).
 		Where("status = ? AND removed_at IS NULL", string(transactiondomain.TransactionStatusActive)).
+		Where("settlement_status = ?", string(transactiondomain.SettlementStatusSettled)).
 		Where("type IN ?", []string{string(transactiondomain.TransactionTypeIncome), string(transactiondomain.TransactionTypeExpense)}).
 		Where("occurred_at >= ? AND occurred_at <= ?", period.StartAt, period.EndAt).
 		Group("date_trunc('month', occurred_at)").
@@ -159,6 +160,7 @@ func (repository Repository) FindMonthlyBalances(ctx context.Context, userID use
 				FROM accounts
 				LEFT JOIN transactions ON transactions.user_id = accounts.user_id
 					AND transactions.status = ?
+					AND transactions.settlement_status = ?
 					AND transactions.removed_at IS NULL
 					AND transactions.occurred_at <= ?
 					AND (
@@ -177,6 +179,7 @@ func (repository Repository) FindMonthlyBalances(ctx context.Context, userID use
 			string(transactiondomain.TransactionTypeTransfer),
 			string(transactiondomain.TransactionTypeTransfer),
 			string(transactiondomain.TransactionStatusActive),
+			string(transactiondomain.SettlementStatusSettled),
 			monthEnd,
 			string(userID),
 			string(accountdomain.AccountStatusActive),
@@ -196,7 +199,7 @@ func (repository Repository) FindTransactionsByPeriod(ctx context.Context, userI
 	var rows []recentTransactionRow
 	if err := repository.db.WithContext(ctx).
 		Table("transactions").
-		Select("id, user_id, type, description, amount, occurred_at, account_id, source_account_id, destination_account_id, category_id, status, note, removed_at, created_at, updated_at").
+		Select("id, user_id, type, description, amount, occurred_at, account_id, source_account_id, destination_account_id, category_id, status, settlement_status, note, removed_at, created_at, updated_at").
 		Where("user_id = ?", string(userID)).
 		Where("status = ? AND removed_at IS NULL", string(transactiondomain.TransactionStatusActive)).
 		Where("occurred_at >= ? AND occurred_at <= ?", period.StartAt, period.EndAt).
@@ -225,6 +228,7 @@ func (repository Repository) FindExpensesByCategory(ctx context.Context, userID 
 		Where("transactions.user_id = ?", string(userID)).
 		Where("transactions.type = ?", string(transactiondomain.TransactionTypeExpense)).
 		Where("transactions.status = ? AND transactions.removed_at IS NULL", string(transactiondomain.TransactionStatusActive)).
+		Where("transactions.settlement_status = ?", string(transactiondomain.SettlementStatusSettled)).
 		Where("transactions.occurred_at >= ? AND transactions.occurred_at <= ?", period.StartAt, period.EndAt).
 		Group("categories.id, categories.name, categories.color, categories.icon").
 		Order("total DESC, categories.name ASC").
@@ -324,6 +328,7 @@ func (repository Repository) sumByType(ctx context.Context, userID userdomain.Us
 		Where("user_id = ?", string(userID)).
 		Where("type = ?", string(transactionType)).
 		Where("status = ? AND removed_at IS NULL", string(transactiondomain.TransactionStatusActive)).
+		Where("settlement_status = ?", string(transactiondomain.SettlementStatusSettled)).
 		Where("occurred_at >= ? AND occurred_at <= ?", period.StartAt, period.EndAt).
 		Scan(&total).Error; err != nil {
 		return 0, err
@@ -384,6 +389,7 @@ type recentTransactionRow struct {
 	DestinationAccountID *string
 	CategoryID           *string
 	Status               string
+	SettlementStatus     string
 	Note                 string
 	RemovedAt            *time.Time
 	CreatedAt            time.Time
@@ -420,6 +426,10 @@ func toDomainTransaction(row recentTransactionRow) (transactiondomain.Transactio
 		toCategoryID(row.CategoryID),
 		transactiondomain.TransactionStatus(row.Status),
 		transactiondomain.TransactionOriginTypeManual,
+		nil,
+		transactiondomain.SettlementStatus(row.SettlementStatus),
+		nil,
+		transactiondomain.RecurrenceTypeNone,
 		nil,
 		row.Note,
 		row.RemovedAt,

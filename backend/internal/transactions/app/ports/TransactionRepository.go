@@ -12,14 +12,16 @@ import (
 )
 
 type ListTransactionsInput struct {
-	UserID     userdomain.UserID
-	StartAt    *time.Time
-	EndAt      *time.Time
-	AccountID  *accountdomain.AccountID
-	CategoryID *categorydomain.CategoryID
-	Type       *domain.TransactionType
-	Limit      int
-	Offset     int
+	UserID           userdomain.UserID
+	StartAt          *time.Time
+	EndAt            *time.Time
+	AccountID        *accountdomain.AccountID
+	AccountIDNone    bool
+	CategoryID       *categorydomain.CategoryID
+	Type             *domain.TransactionType
+	SettlementStatus *domain.SettlementStatus
+	Limit            int
+	Offset           int
 }
 
 type TransactionRepository interface {

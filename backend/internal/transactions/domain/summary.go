@@ -21,6 +21,9 @@ func CalculateTransactionTotals(transactions []Transaction) TransactionTotals {
 		if transaction.Status != TransactionStatusActive || transaction.RemovedAt != nil {
 			continue
 		}
+		if transaction.Type != TransactionTypeTransfer && transaction.SettlementStatus != SettlementStatusSettled {
+			continue
+		}
 
 		switch transaction.Type {
 		case TransactionTypeIncome:

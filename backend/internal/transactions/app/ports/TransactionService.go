@@ -25,6 +25,10 @@ type TransactionDTO struct {
 	Status               domain.TransactionStatus
 	OriginType           domain.TransactionOriginType
 	OriginID             *string
+	SettlementStatus     domain.SettlementStatus
+	SettledAt            *time.Time
+	RecurrenceType       domain.RecurrenceType
+	Recurrence           *domain.Recurrence
 	Note                 string
 	RemovedAt            *time.Time
 	CreatedAt            time.Time
@@ -32,15 +36,19 @@ type TransactionDTO struct {
 }
 
 type CreateIncomeInput struct {
-	UserID      userdomain.UserID
-	Description string
-	Amount      financedomain.Money
-	OccurredAt  time.Time
-	AccountID   accountdomain.AccountID
-	CategoryID  categorydomain.CategoryID
-	OriginType  domain.TransactionOriginType
-	OriginID    string
-	Note        string
+	UserID           userdomain.UserID
+	Description      string
+	Amount           financedomain.Money
+	OccurredAt       time.Time
+	AccountID        *accountdomain.AccountID
+	CategoryID       categorydomain.CategoryID
+	SettlementStatus domain.SettlementStatus
+	SettledAt        *time.Time
+	RecurrenceType   domain.RecurrenceType
+	Recurrence       *domain.Recurrence
+	OriginType       domain.TransactionOriginType
+	OriginID         string
+	Note             string
 }
 
 type CreateExpenseInput = CreateIncomeInput
@@ -61,10 +69,14 @@ type UpdateTransactionInput struct {
 	Description          string
 	Amount               financedomain.Money
 	OccurredAt           time.Time
-	AccountID            accountdomain.AccountID
+	AccountID            *accountdomain.AccountID
 	SourceAccountID      accountdomain.AccountID
 	DestinationAccountID accountdomain.AccountID
 	CategoryID           categorydomain.CategoryID
+	SettlementStatus     domain.SettlementStatus
+	SettledAt            *time.Time
+	RecurrenceType       domain.RecurrenceType
+	Recurrence           *domain.Recurrence
 	Note                 string
 }
 

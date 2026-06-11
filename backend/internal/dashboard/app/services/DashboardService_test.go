@@ -258,7 +258,8 @@ func (repository *fakeDashboardRepository) FindRecentTransactions(ctx context.Co
 
 func validIncomeTransaction(t *testing.T, id transactiondomain.TransactionID, cents int64) transactiondomain.Transaction {
 	t.Helper()
-	transaction, err := transactiondomain.NewIncome(id, "user-id", "Income", financedomain.NewMoney(cents), time.Now(), "account-id", "category-id", "")
+	accountID := accountdomain.AccountID("account-id")
+	transaction, err := transactiondomain.NewIncome(id, "user-id", "Income", financedomain.NewMoney(cents), time.Now(), &accountID, "category-id", transactiondomain.SettlementStatusSettled, nil, transactiondomain.RecurrenceTypeNone, nil, "")
 	if err != nil {
 		t.Fatalf("expected valid income transaction, got %v", err)
 	}
@@ -267,7 +268,8 @@ func validIncomeTransaction(t *testing.T, id transactiondomain.TransactionID, ce
 
 func validExpenseTransaction(t *testing.T, id transactiondomain.TransactionID, cents int64) transactiondomain.Transaction {
 	t.Helper()
-	transaction, err := transactiondomain.NewExpense(id, "user-id", "Expense", financedomain.NewMoney(cents), time.Now(), "account-id", "category-id", "")
+	accountID := accountdomain.AccountID("account-id")
+	transaction, err := transactiondomain.NewExpense(id, "user-id", "Expense", financedomain.NewMoney(cents), time.Now(), &accountID, "category-id", transactiondomain.SettlementStatusSettled, nil, transactiondomain.RecurrenceTypeNone, nil, "")
 	if err != nil {
 		t.Fatalf("expected valid expense transaction, got %v", err)
 	}

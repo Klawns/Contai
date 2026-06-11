@@ -30,6 +30,14 @@ const (
 	PurchaseStatusCanceled PurchaseStatus = "canceled"
 )
 
+type PurchaseType string
+
+const (
+	PurchaseTypeSingle      PurchaseType = "single"
+	PurchaseTypeInstallment PurchaseType = "installment"
+	PurchaseTypeFixed       PurchaseType = "fixed"
+)
+
 type InvoiceStatus string
 
 const (
@@ -63,19 +71,21 @@ type CreditCard struct {
 }
 
 type Purchase struct {
-	ID               PurchaseID
-	UserID           userdomain.UserID
-	CardID           CreditCardID
-	CategoryID       categorydomain.CategoryID
-	Description      string
-	TotalAmount      financedomain.Money
-	PurchaseDate     time.Time
-	InstallmentCount int
-	Note             string
-	Status           PurchaseStatus
-	CanceledAt       *time.Time
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                PurchaseID
+	UserID            userdomain.UserID
+	CardID            CreditCardID
+	CategoryID        categorydomain.CategoryID
+	Description       string
+	TotalAmount       financedomain.Money
+	PurchaseDate      time.Time
+	PurchaseType      PurchaseType
+	InstallmentCount  int
+	FirstInvoiceMonth time.Time
+	Note              string
+	Status            PurchaseStatus
+	CanceledAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 
 type Installment struct {
@@ -184,40 +194,44 @@ func (card CreditCard) validate() error {
 	return nil
 }
 
-func NewPurchase(id PurchaseID, userID userdomain.UserID, cardID CreditCardID, categoryID categorydomain.CategoryID, description string, totalAmount financedomain.Money, purchaseDate time.Time, installmentCount int, note string) (Purchase, error) {
+func NewPurchase(id PurchaseID, userID userdomain.UserID, cardID CreditCardID, categoryID categorydomain.CategoryID, description string, totalAmount financedomain.Money, purchaseDate time.Time, purchaseType PurchaseType, installmentCount int, firstInvoiceMonth time.Time, note string) (Purchase, error) {
 	now := time.Now()
 	purchase := Purchase{
-		ID:               PurchaseID(strings.TrimSpace(string(id))),
-		UserID:           userdomain.UserID(strings.TrimSpace(string(userID))),
-		CardID:           CreditCardID(strings.TrimSpace(string(cardID))),
-		CategoryID:       categorydomain.CategoryID(strings.TrimSpace(string(categoryID))),
-		Description:      strings.TrimSpace(description),
-		TotalAmount:      totalAmount,
-		PurchaseDate:     purchaseDate,
-		InstallmentCount: installmentCount,
-		Note:             strings.TrimSpace(note),
-		Status:           PurchaseStatusActive,
-		CreatedAt:        now,
-		UpdatedAt:        now,
+		ID:                PurchaseID(strings.TrimSpace(string(id))),
+		UserID:            userdomain.UserID(strings.TrimSpace(string(userID))),
+		CardID:            CreditCardID(strings.TrimSpace(string(cardID))),
+		CategoryID:        categorydomain.CategoryID(strings.TrimSpace(string(categoryID))),
+		Description:       strings.TrimSpace(description),
+		TotalAmount:       totalAmount,
+		PurchaseDate:      purchaseDate,
+		PurchaseType:      purchaseType,
+		InstallmentCount:  installmentCount,
+		FirstInvoiceMonth: FirstDayOfMonth(firstInvoiceMonth),
+		Note:              strings.TrimSpace(note),
+		Status:            PurchaseStatusActive,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 	return purchase, purchase.validate()
 }
 
-func RehydratePurchase(id PurchaseID, userID userdomain.UserID, cardID CreditCardID, categoryID categorydomain.CategoryID, description string, totalAmount financedomain.Money, purchaseDate time.Time, installmentCount int, note string, status PurchaseStatus, canceledAt *time.Time, createdAt, updatedAt time.Time) (Purchase, error) {
+func RehydratePurchase(id PurchaseID, userID userdomain.UserID, cardID CreditCardID, categoryID categorydomain.CategoryID, description string, totalAmount financedomain.Money, purchaseDate time.Time, purchaseType PurchaseType, installmentCount int, firstInvoiceMonth time.Time, note string, status PurchaseStatus, canceledAt *time.Time, createdAt, updatedAt time.Time) (Purchase, error) {
 	purchase := Purchase{
-		ID:               PurchaseID(strings.TrimSpace(string(id))),
-		UserID:           userdomain.UserID(strings.TrimSpace(string(userID))),
-		CardID:           CreditCardID(strings.TrimSpace(string(cardID))),
-		CategoryID:       categorydomain.CategoryID(strings.TrimSpace(string(categoryID))),
-		Description:      strings.TrimSpace(description),
-		TotalAmount:      totalAmount,
-		PurchaseDate:     purchaseDate,
-		InstallmentCount: installmentCount,
-		Note:             strings.TrimSpace(note),
-		Status:           status,
-		CanceledAt:       canceledAt,
-		CreatedAt:        createdAt,
-		UpdatedAt:        updatedAt,
+		ID:                PurchaseID(strings.TrimSpace(string(id))),
+		UserID:            userdomain.UserID(strings.TrimSpace(string(userID))),
+		CardID:            CreditCardID(strings.TrimSpace(string(cardID))),
+		CategoryID:        categorydomain.CategoryID(strings.TrimSpace(string(categoryID))),
+		Description:       strings.TrimSpace(description),
+		TotalAmount:       totalAmount,
+		PurchaseDate:      purchaseDate,
+		PurchaseType:      purchaseType,
+		InstallmentCount:  installmentCount,
+		FirstInvoiceMonth: FirstDayOfMonth(firstInvoiceMonth),
+		Note:              strings.TrimSpace(note),
+		Status:            status,
+		CanceledAt:        canceledAt,
+		CreatedAt:         createdAt,
+		UpdatedAt:         updatedAt,
 	}
 	return purchase, purchase.validate()
 }
@@ -255,7 +269,28 @@ func (purchase Purchase) validate() error {
 	if purchase.PurchaseDate.IsZero() {
 		return ErrPurchaseDateRequired
 	}
-	if purchase.InstallmentCount < 1 {
+	if purchase.FirstInvoiceMonth.IsZero() {
+		return ErrPurchaseFirstInvoiceMonthRequired
+	}
+	switch purchase.PurchaseType {
+	case "":
+		return ErrPurchaseTypeInvalid
+	case PurchaseTypeSingle:
+		if purchase.InstallmentCount != 1 {
+			return ErrPurchaseInstallmentCountInvalid
+		}
+	case PurchaseTypeInstallment:
+		if purchase.InstallmentCount < 2 || purchase.InstallmentCount > 12 {
+			return ErrPurchaseInstallmentCountInvalid
+		}
+	case PurchaseTypeFixed:
+		if purchase.InstallmentCount != 1 {
+			return ErrPurchaseInstallmentCountInvalid
+		}
+	default:
+		return ErrPurchaseTypeInvalid
+	}
+	if purchase.InstallmentCount < 1 || purchase.InstallmentCount > 12 {
 		return ErrPurchaseInstallmentCountInvalid
 	}
 	if purchase.Status != PurchaseStatusActive && purchase.Status != PurchaseStatusCanceled {

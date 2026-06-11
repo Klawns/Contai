@@ -16,7 +16,15 @@ type TransactionEntity struct {
 	Status               string    `gorm:"not null;index"`
 	OriginType           string    `gorm:"not null;default:manual;index"`
 	OriginID             *string   `gorm:"index"`
-	Note                 string    `gorm:"not null"`
+	SettlementStatus     string    `gorm:"not null;default:settled;index"`
+	SettledAt            *time.Time
+	RecurrenceType       string `gorm:"not null;default:none;index"`
+	RecurrenceFrequency  *string
+	RecurrenceQuantity   *int
+	RecurrenceStartsAt   *time.Time
+	RecurrenceEndsAt     *time.Time
+	RecurrenceDayOfMonth *int
+	Note                 string `gorm:"not null"`
 	RemovedAt            *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time

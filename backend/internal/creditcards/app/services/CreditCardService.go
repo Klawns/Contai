@@ -169,7 +169,7 @@ func (service CreditCardService) CreatePurchase(ctx context.Context, input ports
 		if err := service.validateExpenseCategory(txCtx, categoryRepository, input.UserID, input.CategoryID); err != nil {
 			return err
 		}
-		purchase, err := domain.NewPurchase(service.idGenerator.NewPurchaseID(), input.UserID, input.CardID, input.CategoryID, input.Description, input.TotalAmount, input.PurchaseDate, input.InstallmentCount, input.Note)
+		purchase, err := domain.NewPurchase(service.idGenerator.NewPurchaseID(), input.UserID, input.CardID, input.CategoryID, input.Description, input.TotalAmount, input.PurchaseDate, input.PurchaseType, input.InstallmentCount, input.FirstInvoiceMonth, input.Note)
 		if err != nil {
 			return err
 		}
@@ -336,7 +336,8 @@ func (service CreditCardService) PayInvoice(ctx context.Context, input ports.Pay
 		if account == nil || account.Status != accountdomain.AccountStatusActive {
 			return domain.ErrCreditCardAccountNotFound
 		}
-		transaction, err := transactiondomain.NewExpense(service.transactionIDGenerator.NewTransactionID(), input.UserID, fmt.Sprintf("Fatura %s", card.Name), amount, input.OccurredAt, card.LinkedAccountID, input.CategoryID, input.Note)
+		accountID := card.LinkedAccountID
+		transaction, err := transactiondomain.NewExpense(service.transactionIDGenerator.NewTransactionID(), input.UserID, fmt.Sprintf("Fatura %s", card.Name), amount, input.OccurredAt, &accountID, input.CategoryID, transactiondomain.SettlementStatusSettled, &input.OccurredAt, transactiondomain.RecurrenceTypeNone, nil, input.Note)
 		if err != nil {
 			return err
 		}
@@ -373,8 +374,8 @@ func (service CreditCardService) buildInstallments(ctx context.Context, reposito
 	amounts := domain.SplitInstallments(purchase.TotalAmount, purchase.InstallmentCount)
 	installments := make([]domain.Installment, 0, len(amounts))
 	for index, amount := range amounts {
-		installmentDate := purchase.PurchaseDate.AddDate(0, index, 0)
-		referenceMonth, closingAt, dueAt := domain.CycleForPurchase(installmentDate, card.ClosingDay, card.DueDay)
+		referenceMonth := purchase.FirstInvoiceMonth.AddDate(0, index, 0)
+		closingAt, dueAt := invoiceDatesForReferenceMonth(referenceMonth, card.ClosingDay, card.DueDay)
 		invoice, err := repository.FindInvoiceByCardAndReferenceMonth(ctx, card.ID, card.UserID, referenceMonth)
 		if err != nil {
 			return nil, err
@@ -396,6 +397,26 @@ func (service CreditCardService) buildInstallments(ctx context.Context, reposito
 		installments = append(installments, installment)
 	}
 	return installments, nil
+}
+
+func invoiceDatesForReferenceMonth(referenceMonth time.Time, closingDay int, dueDay int) (time.Time, time.Time) {
+	referenceMonth = domain.FirstDayOfMonth(referenceMonth)
+	closingAt := dateWithClampedDay(referenceMonth, closingDay)
+	dueMonth := referenceMonth
+	if dueDay <= closingDay {
+		dueMonth = dueMonth.AddDate(0, 1, 0)
+	}
+	return closingAt, dateWithClampedDay(dueMonth, dueDay)
+}
+
+func dateWithClampedDay(month time.Time, day int) time.Time {
+	location := month.Location()
+	first := time.Date(month.In(location).Year(), month.In(location).Month(), 1, 0, 0, 0, 0, location)
+	lastDay := first.AddDate(0, 1, -1).Day()
+	if day > lastDay {
+		day = lastDay
+	}
+	return time.Date(first.Year(), first.Month(), day, 0, 0, 0, 0, location)
 }
 
 func (service CreditCardService) validateAccount(ctx context.Context, repository accountports.AccountRepository, userID userdomain.UserID, accountID accountdomain.AccountID) error {
@@ -508,19 +529,21 @@ func toCreditCardDTO(card domain.CreditCard, used financedomain.Money) ports.Cre
 
 func toPurchaseDTO(purchase domain.Purchase) ports.PurchaseDTO {
 	return ports.PurchaseDTO{
-		ID:               purchase.ID,
-		UserID:           purchase.UserID,
-		CardID:           purchase.CardID,
-		CategoryID:       purchase.CategoryID,
-		Description:      purchase.Description,
-		TotalAmount:      purchase.TotalAmount,
-		PurchaseDate:     purchase.PurchaseDate,
-		InstallmentCount: purchase.InstallmentCount,
-		Note:             purchase.Note,
-		Status:           purchase.Status,
-		CanceledAt:       purchase.CanceledAt,
-		CreatedAt:        purchase.CreatedAt,
-		UpdatedAt:        purchase.UpdatedAt,
+		ID:                purchase.ID,
+		UserID:            purchase.UserID,
+		CardID:            purchase.CardID,
+		CategoryID:        purchase.CategoryID,
+		Description:       purchase.Description,
+		TotalAmount:       purchase.TotalAmount,
+		PurchaseDate:      purchase.PurchaseDate,
+		PurchaseType:      purchase.PurchaseType,
+		InstallmentCount:  purchase.InstallmentCount,
+		FirstInvoiceMonth: purchase.FirstInvoiceMonth,
+		Note:              purchase.Note,
+		Status:            purchase.Status,
+		CanceledAt:        purchase.CanceledAt,
+		CreatedAt:         purchase.CreatedAt,
+		UpdatedAt:         purchase.UpdatedAt,
 	}
 }
 

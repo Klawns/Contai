@@ -41,23 +41,37 @@ func toDomainCreditCard(entity CreditCardEntity) (domain.CreditCard, error) {
 
 func toPurchaseEntity(purchase domain.Purchase) CardPurchaseEntity {
 	return CardPurchaseEntity{
-		ID:               string(purchase.ID),
-		UserID:           string(purchase.UserID),
-		CardID:           string(purchase.CardID),
-		CategoryID:       string(purchase.CategoryID),
-		Description:      purchase.Description,
-		TotalAmount:      purchase.TotalAmount.Cents(),
-		PurchaseDate:     purchase.PurchaseDate,
-		InstallmentCount: purchase.InstallmentCount,
-		Note:             purchase.Note,
-		Status:           string(purchase.Status),
-		CanceledAt:       purchase.CanceledAt,
-		CreatedAt:        purchase.CreatedAt,
-		UpdatedAt:        purchase.UpdatedAt,
+		ID:                string(purchase.ID),
+		UserID:            string(purchase.UserID),
+		CardID:            string(purchase.CardID),
+		CategoryID:        string(purchase.CategoryID),
+		Description:       purchase.Description,
+		TotalAmount:       purchase.TotalAmount.Cents(),
+		PurchaseDate:      purchase.PurchaseDate,
+		PurchaseType:      string(purchase.PurchaseType),
+		InstallmentCount:  purchase.InstallmentCount,
+		FirstInvoiceMonth: purchase.FirstInvoiceMonth,
+		Note:              purchase.Note,
+		Status:            string(purchase.Status),
+		CanceledAt:        purchase.CanceledAt,
+		CreatedAt:         purchase.CreatedAt,
+		UpdatedAt:         purchase.UpdatedAt,
 	}
 }
 
 func toDomainPurchase(entity CardPurchaseEntity) (domain.Purchase, error) {
+	purchaseType := domain.PurchaseType(entity.PurchaseType)
+	if purchaseType == "" {
+		if entity.InstallmentCount > 1 {
+			purchaseType = domain.PurchaseTypeInstallment
+		} else {
+			purchaseType = domain.PurchaseTypeSingle
+		}
+	}
+	firstInvoiceMonth := entity.FirstInvoiceMonth
+	if firstInvoiceMonth.IsZero() {
+		firstInvoiceMonth = domain.FirstDayOfMonth(entity.PurchaseDate)
+	}
 	return domain.RehydratePurchase(
 		domain.PurchaseID(entity.ID),
 		userdomain.UserID(entity.UserID),
@@ -66,7 +80,9 @@ func toDomainPurchase(entity CardPurchaseEntity) (domain.Purchase, error) {
 		entity.Description,
 		financedomain.NewMoney(entity.TotalAmount),
 		entity.PurchaseDate,
+		purchaseType,
 		entity.InstallmentCount,
+		firstInvoiceMonth,
 		entity.Note,
 		domain.PurchaseStatus(entity.Status),
 		entity.CanceledAt,

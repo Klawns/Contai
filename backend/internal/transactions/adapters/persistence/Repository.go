@@ -79,11 +79,17 @@ func (repository TransactionRepository) FindTransactionsByUserID(ctx context.Con
 		accountID := string(*input.AccountID)
 		query = query.Where("account_id = ? OR source_account_id = ? OR destination_account_id = ?", accountID, accountID, accountID)
 	}
+	if input.AccountIDNone {
+		query = query.Where("type IN ? AND account_id IS NULL", []string{string(domain.TransactionTypeIncome), string(domain.TransactionTypeExpense)})
+	}
 	if input.CategoryID != nil {
 		query = query.Where("category_id = ?", string(*input.CategoryID))
 	}
 	if input.Type != nil {
 		query = query.Where("type = ?", string(*input.Type))
+	}
+	if input.SettlementStatus != nil {
+		query = query.Where("settlement_status = ?", string(*input.SettlementStatus))
 	}
 	if input.Limit > 0 {
 		query = query.Limit(input.Limit)

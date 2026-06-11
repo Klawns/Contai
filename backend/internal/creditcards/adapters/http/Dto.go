@@ -23,12 +23,14 @@ type cardRequest struct {
 }
 
 type purchaseRequest struct {
-	CategoryID       string `json:"categoryId" binding:"required"`
-	Description      string `json:"description" binding:"required"`
-	TotalAmount      int64  `json:"totalAmount" binding:"required"`
-	PurchaseDate     string `json:"purchaseDate" binding:"required"`
-	InstallmentCount int    `json:"installmentCount" binding:"required"`
-	Note             string `json:"note"`
+	CategoryID        string `json:"categoryId" binding:"required"`
+	Description       string `json:"description" binding:"required"`
+	TotalAmount       int64  `json:"totalAmount" binding:"required"`
+	PurchaseDate      string `json:"purchaseDate" binding:"required"`
+	PurchaseType      string `json:"purchaseType"`
+	InstallmentCount  int    `json:"installmentCount" binding:"required"`
+	FirstInvoiceMonth string `json:"firstInvoiceMonth"`
+	Note              string `json:"note"`
 }
 
 type payInvoiceRequest struct {
@@ -53,19 +55,21 @@ type cardResponse struct {
 }
 
 type purchaseResponse struct {
-	ID               string  `json:"id"`
-	UserID           string  `json:"userId"`
-	CardID           string  `json:"cardId"`
-	CategoryID       string  `json:"categoryId"`
-	Description      string  `json:"description"`
-	TotalAmount      int64   `json:"totalAmount"`
-	PurchaseDate     string  `json:"purchaseDate"`
-	InstallmentCount int     `json:"installmentCount"`
-	Note             string  `json:"note"`
-	Status           string  `json:"status"`
-	CanceledAt       *string `json:"canceledAt"`
-	CreatedAt        string  `json:"createdAt"`
-	UpdatedAt        string  `json:"updatedAt"`
+	ID                string  `json:"id"`
+	UserID            string  `json:"userId"`
+	CardID            string  `json:"cardId"`
+	CategoryID        string  `json:"categoryId"`
+	Description       string  `json:"description"`
+	TotalAmount       int64   `json:"totalAmount"`
+	PurchaseDate      string  `json:"purchaseDate"`
+	PurchaseType      string  `json:"purchaseType"`
+	InstallmentCount  int     `json:"installmentCount"`
+	FirstInvoiceMonth string  `json:"firstInvoiceMonth"`
+	Note              string  `json:"note"`
+	Status            string  `json:"status"`
+	CanceledAt        *string `json:"canceledAt"`
+	CreatedAt         string  `json:"createdAt"`
+	UpdatedAt         string  `json:"updatedAt"`
 }
 
 type installmentResponse struct {
@@ -150,19 +154,21 @@ func toCardResponses(cards []ports.CreditCardDTO) []cardResponse {
 
 func toPurchaseResponse(purchase ports.PurchaseDTO) purchaseResponse {
 	return purchaseResponse{
-		ID:               string(purchase.ID),
-		UserID:           string(purchase.UserID),
-		CardID:           string(purchase.CardID),
-		CategoryID:       string(purchase.CategoryID),
-		Description:      purchase.Description,
-		TotalAmount:      purchase.TotalAmount.Cents(),
-		PurchaseDate:     purchase.PurchaseDate.Format(timeFormatRFC3339),
-		InstallmentCount: purchase.InstallmentCount,
-		Note:             purchase.Note,
-		Status:           string(purchase.Status),
-		CanceledAt:       timeToString(purchase.CanceledAt),
-		CreatedAt:        purchase.CreatedAt.Format(timeFormatRFC3339),
-		UpdatedAt:        purchase.UpdatedAt.Format(timeFormatRFC3339),
+		ID:                string(purchase.ID),
+		UserID:            string(purchase.UserID),
+		CardID:            string(purchase.CardID),
+		CategoryID:        string(purchase.CategoryID),
+		Description:       purchase.Description,
+		TotalAmount:       purchase.TotalAmount.Cents(),
+		PurchaseDate:      purchase.PurchaseDate.Format(timeFormatRFC3339),
+		PurchaseType:      string(purchase.PurchaseType),
+		InstallmentCount:  purchase.InstallmentCount,
+		FirstInvoiceMonth: purchase.FirstInvoiceMonth.Format("2006-01"),
+		Note:              purchase.Note,
+		Status:            string(purchase.Status),
+		CanceledAt:        timeToString(purchase.CanceledAt),
+		CreatedAt:         purchase.CreatedAt.Format(timeFormatRFC3339),
+		UpdatedAt:         purchase.UpdatedAt.Format(timeFormatRFC3339),
 	}
 }
 
@@ -223,6 +229,10 @@ func toInstallmentResponses(installments []ports.InstallmentDTO) []installmentRe
 
 func parseRFC3339(value string) (time.Time, error) {
 	return time.Parse(time.RFC3339, value)
+}
+
+func parseYearMonth(value string) (time.Time, error) {
+	return time.Parse("2006-01", value)
 }
 
 func timeToString(value *time.Time) *string {
