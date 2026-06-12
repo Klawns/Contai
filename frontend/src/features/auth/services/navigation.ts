@@ -3,6 +3,7 @@ export type AuthPath =
   | '/login'
   | '/registro'
   | '/more'
+  | '/reports'
   | '/accounts'
   | '/accounts/new'
   | '/accounts/edit'
@@ -26,6 +27,7 @@ export const supportedPaths = new Set<string>([
   '/login',
   '/registro',
   '/more',
+  '/reports',
   '/accounts',
   '/accounts/new',
   '/accounts/edit',

@@ -1,7 +1,7 @@
 import {
   ArrowLeftRight,
-  CreditCard,
   Ellipsis,
+  FileText,
   House,
   TrendingDown,
   TrendingUp,
@@ -47,8 +47,8 @@ const baseNavigationItems: NavigationItem[] = [
       { label: 'Transferencia', path: '/transactions/transfer/new' },
     ],
   },
+  { label: 'Relatorios', icon: FileText, path: '/reports' },
   { label: 'Mais', icon: Ellipsis, path: '/more' },
-  { label: 'Cartoes', icon: CreditCard, path: '/credit-cards' },
 ]
 
 export function getNavigationItems(
@@ -60,7 +60,7 @@ export function getNavigationItems(
     active:
       item.path === currentPath ||
       (item.path === '/transactions' && currentPath.startsWith('/transactions')) ||
-      (item.path === '/credit-cards' && currentPath.startsWith('/credit-cards')),
+      (item.path === '/reports' && currentPath.startsWith('/reports')),
     onSelect: item.path ? () => navigate(item.path!) : undefined,
     children: item.children?.map((child) => ({
       ...child,

@@ -14,6 +14,9 @@ const Dashboard = lazy(() =>
 const MorePage = lazy(() =>
   import('../more').then((module) => ({ default: module.MorePage })),
 )
+const ReportsPage = lazy(() =>
+  import('../reports').then((module) => ({ default: module.ReportsPage })),
+)
 const AccountListPage = lazy(() =>
   import('../accounts').then((module) => ({ default: module.AccountListPage })),
 )
@@ -166,6 +169,7 @@ export function AuthGate() {
           <Route element={<AuthenticatedLayout />}>
             <Route index element={<DashboardRoute />} />
             <Route path="/more" element={<MorePage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/accounts" element={<AccountListPage />} />
             <Route path="/accounts/new" element={<AccountCreatePage />} />
             <Route path="/accounts/edit" element={<AccountEditPage />} />

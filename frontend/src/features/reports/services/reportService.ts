@@ -1,10 +1,10 @@
 import type { AxiosResponse } from 'axios'
 import { api } from '../../../lib/api/axios.ts'
-import type {
-  AccountReportFilters,
-  ReportPeriodFilters,
-  TransactionsReportFilters,
-} from '../types/reports.ts'
+import {
+  financialReportFiltersSchema,
+  financialReportSchema,
+} from '../schemas/reports.ts'
+import type { FinancialReport, FinancialReportFilters } from '../types/reports.ts'
 
 type PdfResponse = AxiosResponse<Blob>
 
@@ -12,47 +12,32 @@ const pdfHeaders = {
   Accept: 'application/pdf',
 }
 
-export async function downloadAccountsReportPDF(): Promise<PdfResponse> {
-  return api.get<Blob>('/reports/accounts/pdf', {
-    headers: pdfHeaders,
-    responseType: 'blob',
-  })
+function cleanFilters(filters: FinancialReportFilters) {
+  const parsed = financialReportFiltersSchema.parse(filters)
+
+  return {
+    ...parsed,
+    categoryId: parsed.categoryId || undefined,
+    accountId: parsed.accountId || undefined,
+  }
 }
 
-export async function downloadTransactionsReportPDF(
-  filters: TransactionsReportFilters,
+export async function getFinancialReport(
+  filters: FinancialReportFilters,
+): Promise<FinancialReport> {
+  const response = await api.get<unknown>('/reports/financial', {
+    params: cleanFilters(filters),
+  })
+
+  return financialReportSchema.parse(response.data)
+}
+
+export async function downloadFinancialReportPDF(
+  filters: FinancialReportFilters,
 ): Promise<PdfResponse> {
-  return api.get<Blob>('/reports/transactions/pdf', {
+  return api.get<Blob>('/reports/financial/pdf', {
     headers: pdfHeaders,
-    params: filters,
-    responseType: 'blob',
-  })
-}
-
-export async function downloadPeriodReportPDF(filters: ReportPeriodFilters): Promise<PdfResponse> {
-  return api.get<Blob>('/reports/period/pdf', {
-    headers: pdfHeaders,
-    params: filters,
-    responseType: 'blob',
-  })
-}
-
-export async function downloadMonthlyReportPDF(filters: ReportPeriodFilters): Promise<PdfResponse> {
-  return api.get<Blob>('/reports/monthly/pdf', {
-    headers: pdfHeaders,
-    params: filters,
-    responseType: 'blob',
-  })
-}
-
-export async function downloadAccountReportPDF(
-  filters: AccountReportFilters,
-): Promise<PdfResponse> {
-  const { accountId, ...params } = filters
-
-  return api.get<Blob>(`/reports/account/${accountId}/pdf`, {
-    headers: pdfHeaders,
-    params,
+    params: cleanFilters(filters),
     responseType: 'blob',
   })
 }
