@@ -24,6 +24,12 @@
       "sourceType": "github",
       "skillPath": "skills/golang-security/SKILL.md",
       "computedHash": "23ca5d165aa779a9a7b9046a9ee3bebc2cf07d7bf3ed9602d87ee144aedf9c3f"
+    },
+    "sql-queries": {
+      "source": "phuryn/pm-skills",
+      "sourceType": "github",
+      "skillPath": "pm-data-analytics/skills/sql-queries/SKILL.md",
+      "computedHash": "9e536c811ca95a15f11bf55cf13112de7c63646dcd1bc87b18a3063594ca505c"
     }
   }
 }

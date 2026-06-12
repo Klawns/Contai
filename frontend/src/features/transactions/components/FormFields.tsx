@@ -226,6 +226,22 @@ type FormActionButtonProps = {
   children: ReactNode
 }
 
+type FormScrollableContentProps = {
+  className?: string
+  children: ReactNode
+}
+
+export function FormScrollableContent({
+  className = '',
+  children,
+}: FormScrollableContentProps) {
+  return (
+    <div className={`${className} pb-[calc(var(--app-mobile-content-bottom)+88px)] md:pb-0`}>
+      {children}
+    </div>
+  )
+}
+
 export function FormActionButton({ isPending, children }: FormActionButtonProps) {
   return (
     <div className="sticky bottom-[var(--app-mobile-sticky-bottom)] bg-white/96 px-4 pb-4 pt-5 backdrop-blur md:static md:bg-transparent md:px-5 md:pb-5 md:pt-6 md:backdrop-blur-none">
