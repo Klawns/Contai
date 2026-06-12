@@ -92,45 +92,69 @@ func (renderer Renderer) RenderFinancialReport(ctx context.Context, report repor
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	movements := financialReportMovements(report)
 
 	doc := newPDFDocument(report.Title, report.Subtitle)
 	doc.addPage()
 	doc.addGeneratedAt(report.GeneratedAt)
 	doc.addPeriod(report)
 	doc.addMoneySummary([]summaryItem{
-		{Label: "Receitas", Value: formatMoney(report.IncomeTotal)},
-		{Label: "Despesas", Value: formatMoney(report.ExpenseTotal)},
-		{Label: "Transf. entrada", Value: formatMoney(report.TransferInTotal)},
-		{Label: "Transf. saida", Value: formatMoney(report.TransferOutTotal)},
-		{Label: "Resultado", Value: formatMoney(report.NetTotal)},
+		{Label: "Receitas", Value: formatMoney(report.Summary.IncomeTotal)},
+		{Label: "Despesas", Value: formatMoney(report.Summary.ExpenseTotal)},
+		{Label: "Resultado", Value: formatMoney(report.Summary.PeriodResult)},
+		{Label: "Pendentes", Value: formatMoney(report.Summary.PendingTotal)},
+		{Label: "Liquidados", Value: formatMoney(report.Summary.SettledTotal)},
 	})
 
 	columns := []tableColumn{
 		{Label: "Data", Width: 24, Align: "L"},
-		{Label: "Tipo", Width: 27, Align: "L"},
-		{Label: "Descricao", Width: 61, Align: "L"},
-		{Label: "Conta", Width: 42, Align: "L"},
-		{Label: "Valor", Width: 28, Align: "R"},
+		{Label: "Tipo", Width: 32, Align: "L"},
+		{Label: "Descricao", Width: 54, Align: "L"},
+		{Label: "Conta", Width: 34, Align: "L"},
+		{Label: "Status", Width: 22, Align: "L"},
+		{Label: "Valor", Width: 24, Align: "R"},
 	}
 	doc.addTableHeader(columns)
-	if len(report.Transactions) == 0 {
-		doc.addEmptyRow(columns, "Nenhuma transacao encontrada.")
+	if len(movements) == 0 {
+		doc.addEmptyRow(columns, "Nenhuma movimentacao encontrada.")
 	} else {
-		for _, transaction := range report.Transactions {
+		for _, movement := range movements {
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 			doc.addTableRow(columns, []string{
-				formatDate(transaction.OccurredAt),
-				transactionType(transaction.Type),
-				transaction.Description,
-				transactionAccountName(transaction),
-				formatMoney(transaction.Amount),
+				formatDate(movement.OccurredAt),
+				movementType(movement.Type),
+				movement.Description,
+				movement.AccountName,
+				settlementStatus(movement.SettlementStatus),
+				formatMoney(movement.Amount),
 			})
 		}
 	}
 
 	return doc.output()
+}
+
+func financialReportMovements(report reportports.FinancialReportDTO) []reportports.FinancialMovementDTO {
+	if len(report.Movements) > 0 || len(report.Transactions) == 0 {
+		return report.Movements
+	}
+	movements := make([]reportports.FinancialMovementDTO, 0, len(report.Transactions))
+	for _, transaction := range report.Transactions {
+		movements = append(movements, reportports.FinancialMovementDTO{
+			ID:               string(transaction.ID),
+			Source:           reportports.MovementType(transaction.Type),
+			Type:             reportports.MovementType(transaction.Type),
+			Description:      transaction.Description,
+			Amount:           transaction.Amount,
+			OccurredAt:       transaction.OccurredAt,
+			AccountID:        transaction.AccountID,
+			AccountName:      transactionAccountName(transaction),
+			SettlementStatus: transactiondomain.SettlementStatusSettled,
+		})
+	}
+	return movements
 }
 
 type summaryItem struct {
@@ -368,6 +392,28 @@ func transactionType(value transactiondomain.TransactionType) string {
 	default:
 		return "Outro"
 	}
+}
+
+func movementType(value reportports.MovementType) string {
+	switch value {
+	case reportports.MovementTypeIncome:
+		return "Receita"
+	case reportports.MovementTypeExpense:
+		return "Despesa"
+	case reportports.MovementTypeCreditCardExpense:
+		return "Despesa cartao"
+	case reportports.MovementTypeTransfer:
+		return "Transferencia"
+	default:
+		return "Outro"
+	}
+}
+
+func settlementStatus(value transactiondomain.SettlementStatus) string {
+	if value == transactiondomain.SettlementStatusSettled {
+		return "Liquidado"
+	}
+	return "Pendente"
 }
 
 func transactionAccountName(transaction reportports.ReportTransactionRow) string {

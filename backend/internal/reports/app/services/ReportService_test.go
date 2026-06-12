@@ -7,111 +7,92 @@ import (
 	"time"
 
 	accountdomain "contai/internal/account/domain"
+	categorydomain "contai/internal/category/domain"
 	financedomain "contai/internal/finance/domain"
 	reportports "contai/internal/reports/app/ports"
 	transactiondomain "contai/internal/transactions/domain"
-	userdomain "contai/internal/users/domain"
 )
 
-func TestReportServiceGeneratesAccountsPDFWithTotals(t *testing.T) {
-	generatedAt := time.Date(2026, 6, 5, 10, 30, 0, 0, time.UTC)
+func TestReportServiceBuildsFinancialReportTotalsAndGroups(t *testing.T) {
+	startAt := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	endAt := time.Date(2026, 6, 30, 23, 59, 59, 0, time.UTC)
+	categoryID := categorydomain.CategoryID("food")
+	accountID := accountdomain.AccountID("checking")
 	repository := &fakeReportRepository{
-		accounts: []reportports.AccountReportRow{
+		movements: []reportports.FinancialMovementDTO{
 			{
-				ID:                      "checking",
-				Name:                    "Checking",
-				Type:                    accountdomain.AccountTypeChecking,
-				Status:                  accountdomain.AccountStatusActive,
-				InitialBalance:          financedomain.NewMoney(1000),
-				CurrentBalance:          financedomain.NewMoney(1500),
-				IncludeInDashboardTotal: true,
+				ID:               "income-id",
+				Type:             reportports.MovementTypeIncome,
+				Description:      "Salary",
+				Amount:           financedomain.NewMoney(10000),
+				OccurredAt:       startAt,
+				AccountID:        &accountID,
+				AccountName:      "Checking",
+				SettlementStatus: transactiondomain.SettlementStatusSettled,
 			},
 			{
-				ID:                      "cash",
-				Name:                    "Cash",
-				Type:                    accountdomain.AccountTypeCash,
-				Status:                  accountdomain.AccountStatusInactive,
-				InitialBalance:          financedomain.NewMoney(500),
-				CurrentBalance:          financedomain.NewMoney(700),
-				IncludeInDashboardTotal: true,
+				ID:               "expense-id",
+				Type:             reportports.MovementTypeCreditCardExpense,
+				Description:      "Market",
+				Amount:           financedomain.NewMoney(3500),
+				OccurredAt:       endAt,
+				CategoryID:       &categoryID,
+				CategoryName:     "Food",
+				AccountID:        &accountID,
+				AccountName:      "Checking",
+				SettlementStatus: transactiondomain.SettlementStatusPending,
 			},
 			{
-				ID:                      "savings",
-				Name:                    "Savings",
-				Type:                    accountdomain.AccountTypeSavings,
-				Status:                  accountdomain.AccountStatusActive,
-				InitialBalance:          financedomain.NewMoney(200),
-				CurrentBalance:          financedomain.NewMoney(300),
-				IncludeInDashboardTotal: false,
+				ID:               "transfer-id",
+				Type:             reportports.MovementTypeTransfer,
+				Description:      "Move money",
+				Amount:           financedomain.NewMoney(2500),
+				OccurredAt:       endAt,
+				AccountID:        &accountID,
+				AccountName:      "Checking",
+				SettlementStatus: transactiondomain.SettlementStatusSettled,
 			},
 		},
 	}
-	renderer := &fakePDFRenderer{content: []byte("%PDF")}
-	service := NewReportService(repository, renderer)
+	service := NewReportService(repository, &fakePDFRenderer{})
 
-	file, err := service.GenerateAccountsPDF(context.Background(), reportports.GenerateAccountsReportInput{
-		UserID: "user-id",
-		Now:    generatedAt,
+	report, err := service.GetFinancialReport(context.Background(), reportports.FinancialReportInput{
+		UserID:  "user-id",
+		StartAt: startAt,
+		EndAt:   endAt,
+		GroupBy: reportports.ReportGroupByAccount,
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	if file.Filename != "contai-relatorio-contas.pdf" {
-		t.Fatalf("expected accounts filename, got %s", file.Filename)
+	if repository.input.UserID != "user-id" {
+		t.Fatalf("expected repository to filter by user, got %s", repository.input.UserID)
 	}
-	if string(file.Content) != "%PDF" {
-		t.Fatalf("expected renderer content, got %q", string(file.Content))
+	if report.Summary.IncomeTotal.Cents() != 10000 {
+		t.Fatalf("expected income total 10000, got %d", report.Summary.IncomeTotal.Cents())
 	}
-	if repository.listAccountsUserID != "user-id" {
-		t.Fatalf("expected repository to list accounts for user, got %s", repository.listAccountsUserID)
+	if report.Summary.ExpenseTotal.Cents() != 3500 {
+		t.Fatalf("expected expense total 3500, got %d", report.Summary.ExpenseTotal.Cents())
 	}
-	if renderer.report.TotalBalance.Cents() != 2500 {
-		t.Fatalf("expected total balance 2500, got %d", renderer.report.TotalBalance.Cents())
+	if report.Summary.PeriodResult.Cents() != 6500 {
+		t.Fatalf("expected period result 6500, got %d", report.Summary.PeriodResult.Cents())
 	}
-	if renderer.report.DashboardTotal.Cents() != 1500 {
-		t.Fatalf("expected dashboard total 1500, got %d", renderer.report.DashboardTotal.Cents())
+	if report.Summary.PendingTotal.Cents() != 3500 || report.Summary.SettledTotal.Cents() != 10000 {
+		t.Fatalf("expected status totals, got pending=%d settled=%d", report.Summary.PendingTotal.Cents(), report.Summary.SettledTotal.Cents())
 	}
-	if !renderer.report.GeneratedAt.Equal(generatedAt) {
-		t.Fatalf("expected generated at to be propagated, got %s", renderer.report.GeneratedAt)
-	}
-}
-
-func TestReportServiceRequiresUserID(t *testing.T) {
-	service := NewReportService(&fakeReportRepository{}, &fakePDFRenderer{})
-
-	_, err := service.GenerateAccountsPDF(context.Background(), reportports.GenerateAccountsReportInput{})
-
-	if !errors.Is(err, accountdomain.ErrAccountUserIDRequired) {
-		t.Fatalf("expected user id error, got %v", err)
+	if len(report.Groups) != 1 || report.Groups[0].Label != "Checking" {
+		t.Fatalf("expected account group, got %#v", report.Groups)
 	}
 }
 
-func TestReportServiceGeneratesPeriodPDFWithTotals(t *testing.T) {
+func TestReportServiceGeneratesFinancialPDFFromSameReport(t *testing.T) {
 	startAt := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	endAt := time.Date(2026, 6, 30, 23, 59, 59, 0, time.UTC)
-	repository := &fakeReportRepository{
-		transactions: []reportports.ReportTransactionRow{
-			{
-				ID:          "income-id",
-				Type:        transactiondomain.TransactionTypeIncome,
-				Description: "Salary",
-				Amount:      financedomain.NewMoney(10000),
-				OccurredAt:  startAt,
-			},
-			{
-				ID:          "expense-id",
-				Type:        transactiondomain.TransactionTypeExpense,
-				Description: "Market",
-				Amount:      financedomain.NewMoney(3500),
-				OccurredAt:  endAt,
-			},
-		},
-	}
 	renderer := &fakePDFRenderer{content: []byte("%PDF")}
-	service := NewReportService(repository, renderer)
+	service := NewReportService(&fakeReportRepository{}, renderer)
 
-	file, err := service.GeneratePeriodPDF(context.Background(), reportports.PeriodReportInput{
+	file, err := service.GenerateFinancialPDF(context.Background(), reportports.FinancialReportInput{
 		UserID:  "user-id",
 		StartAt: startAt,
 		EndAt:   endAt,
@@ -119,37 +100,32 @@ func TestReportServiceGeneratesPeriodPDFWithTotals(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	if file.Filename != "contai-relatorio-financeiro.pdf" || string(file.Content) != "%PDF" {
+		t.Fatalf("expected pdf file, got %#v", file)
+	}
+	if renderer.financialReport.Title != "Relatorio financeiro" {
+		t.Fatalf("expected financial report title, got %s", renderer.financialReport.Title)
+	}
+}
 
-	if file.Filename != "contai-relatorio-periodo.pdf" {
-		t.Fatalf("expected period filename, got %s", file.Filename)
-	}
-	if repository.listInput.UserID != "user-id" {
-		t.Fatalf("expected repository to filter by user id, got %s", repository.listInput.UserID)
-	}
-	if renderer.financialReport.IncomeTotal.Cents() != 10000 {
-		t.Fatalf("expected income total 10000, got %d", renderer.financialReport.IncomeTotal.Cents())
-	}
-	if renderer.financialReport.ExpenseTotal.Cents() != 3500 {
-		t.Fatalf("expected expense total 3500, got %d", renderer.financialReport.ExpenseTotal.Cents())
-	}
-	if renderer.financialReport.NetTotal.Cents() != 6500 {
-		t.Fatalf("expected net total 6500, got %d", renderer.financialReport.NetTotal.Cents())
+func TestReportServiceRequiresUserID(t *testing.T) {
+	service := NewReportService(&fakeReportRepository{}, &fakePDFRenderer{})
+
+	_, err := service.GetFinancialReport(context.Background(), reportports.FinancialReportInput{})
+
+	if !errors.Is(err, accountdomain.ErrAccountUserIDRequired) {
+		t.Fatalf("expected user id error, got %v", err)
 	}
 }
 
 type fakePDFRenderer struct {
-	report          reportports.AccountsReportDTO
 	financialReport reportports.FinancialReportDTO
 	content         []byte
 	err             error
 }
 
 func (renderer *fakePDFRenderer) RenderAccountsReport(ctx context.Context, report reportports.AccountsReportDTO) ([]byte, error) {
-	renderer.report = report
-	if renderer.err != nil {
-		return nil, renderer.err
-	}
-	return renderer.content, nil
+	return renderer.content, renderer.err
 }
 
 func (renderer *fakePDFRenderer) RenderFinancialReport(ctx context.Context, report reportports.FinancialReportDTO) ([]byte, error) {
@@ -161,33 +137,15 @@ func (renderer *fakePDFRenderer) RenderFinancialReport(ctx context.Context, repo
 }
 
 type fakeReportRepository struct {
-	account            *reportports.AccountReportRow
-	accounts           []reportports.AccountReportRow
-	transactions       []reportports.ReportTransactionRow
-	listInput          reportports.ListReportTransactionsInput
-	listAccountsUserID userdomain.UserID
-	err                error
+	movements []reportports.FinancialMovementDTO
+	input     reportports.ListFinancialMovementsInput
+	err       error
 }
 
-func (repository *fakeReportRepository) FindAccountByID(ctx context.Context, userID userdomain.UserID, accountID accountdomain.AccountID) (*reportports.AccountReportRow, error) {
+func (repository *fakeReportRepository) ListFinancialMovements(ctx context.Context, input reportports.ListFinancialMovementsInput) ([]reportports.FinancialMovementDTO, error) {
+	repository.input = input
 	if repository.err != nil {
 		return nil, repository.err
 	}
-	return repository.account, nil
-}
-
-func (repository *fakeReportRepository) ListAccounts(ctx context.Context, userID userdomain.UserID) ([]reportports.AccountReportRow, error) {
-	repository.listAccountsUserID = userID
-	if repository.err != nil {
-		return nil, repository.err
-	}
-	return repository.accounts, nil
-}
-
-func (repository *fakeReportRepository) ListTransactions(ctx context.Context, input reportports.ListReportTransactionsInput) ([]reportports.ReportTransactionRow, error) {
-	repository.listInput = input
-	if repository.err != nil {
-		return nil, repository.err
-	}
-	return repository.transactions, nil
+	return repository.movements, nil
 }

@@ -2,15 +2,16 @@ package persistence
 
 import (
 	"context"
-	"errors"
+	"sort"
+	"strings"
+	"time"
 
-	accountpersistence "contai/internal/account/adapters/persistence"
 	accountdomain "contai/internal/account/domain"
+	categorydomain "contai/internal/category/domain"
+	creditcarddomain "contai/internal/creditcards/domain"
 	financedomain "contai/internal/finance/domain"
 	reportports "contai/internal/reports/app/ports"
-	transactionpersistence "contai/internal/transactions/adapters/persistence"
 	transactiondomain "contai/internal/transactions/domain"
-	userdomain "contai/internal/users/domain"
 
 	"gorm.io/gorm"
 )
@@ -21,132 +22,187 @@ type ReportRepository struct {
 	db *gorm.DB
 }
 
+type movementRow struct {
+	ID               string
+	Source           string
+	Type             string
+	Description      string
+	Amount           int64
+	OccurredAt       time.Time
+	CategoryID       *string
+	CategoryName     *string
+	AccountID        *string
+	AccountName      *string
+	SettlementStatus string
+}
+
 func NewReportRepository(db *gorm.DB) ReportRepository {
 	return ReportRepository{db: db}
 }
 
-func (repository ReportRepository) FindAccountByID(
+func (repository ReportRepository) ListFinancialMovements(
 	ctx context.Context,
-	userID userdomain.UserID,
-	accountID accountdomain.AccountID,
-) (*reportports.AccountReportRow, error) {
-	var entity accountpersistence.AccountEntity
-	err := repository.db.WithContext(ctx).
-		First(&entity, "id = ? AND user_id = ?", string(accountID), string(userID)).
-		Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
+	input reportports.ListFinancialMovementsInput,
+) ([]reportports.FinancialMovementDTO, error) {
+	movements := make([]reportports.FinancialMovementDTO, 0)
+
+	if input.MovementType == "" || input.MovementType == reportports.MovementTypeAll ||
+		input.MovementType == reportports.MovementTypeIncome ||
+		input.MovementType == reportports.MovementTypeExpense ||
+		input.MovementType == reportports.MovementTypeTransfer {
+		transactionMovements, err := repository.listTransactionMovements(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		movements = append(movements, transactionMovements...)
 	}
 
-	row := accountEntityToReportRow(entity)
-	return &row, nil
+	if input.MovementType == "" || input.MovementType == reportports.MovementTypeAll ||
+		input.MovementType == reportports.MovementTypeCreditCardExpense {
+		cardMovements, err := repository.listCardInstallmentMovements(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		movements = append(movements, cardMovements...)
+	}
+
+	sort.SliceStable(movements, func(i, j int) bool {
+		if movements[i].OccurredAt.Equal(movements[j].OccurredAt) {
+			return movements[i].ID < movements[j].ID
+		}
+		return movements[i].OccurredAt.Before(movements[j].OccurredAt)
+	})
+	return movements, nil
 }
 
-func (repository ReportRepository) ListAccounts(
+func (repository ReportRepository) listTransactionMovements(
 	ctx context.Context,
-	userID userdomain.UserID,
-) ([]reportports.AccountReportRow, error) {
-	var entities []accountpersistence.AccountEntity
-	if err := repository.db.WithContext(ctx).
-		Where("user_id = ?", string(userID)).
-		Order("status ASC, name ASC").
-		Find(&entities).Error; err != nil {
-		return nil, err
-	}
-
-	rows := make([]reportports.AccountReportRow, 0, len(entities))
-	for _, entity := range entities {
-		rows = append(rows, accountEntityToReportRow(entity))
-	}
-	return rows, nil
-}
-
-func (repository ReportRepository) ListTransactions(
-	ctx context.Context,
-	input reportports.ListReportTransactionsInput,
-) ([]reportports.ReportTransactionRow, error) {
+	input reportports.ListFinancialMovementsInput,
+) ([]reportports.FinancialMovementDTO, error) {
 	query := repository.db.WithContext(ctx).
-		Where("user_id = ? AND status = ? AND occurred_at >= ? AND occurred_at <= ?",
+		Table("transactions AS t").
+		Select(strings.Join([]string{
+			"t.id AS id",
+			"t.type AS source",
+			"t.type AS type",
+			"t.description AS description",
+			"t.amount AS amount",
+			"t.occurred_at AS occurred_at",
+			"t.category_id AS category_id",
+			"cat.name AS category_name",
+			"COALESCE(t.account_id, t.source_account_id) AS account_id",
+			"CASE WHEN t.type = ? THEN source_account.name || ' -> ' || destination_account.name ELSE account.name END AS account_name",
+			"t.settlement_status AS settlement_status",
+		}, ", "), string(transactiondomain.TransactionTypeTransfer)).
+		Joins("LEFT JOIN categories AS cat ON cat.id = t.category_id AND cat.user_id = t.user_id").
+		Joins("LEFT JOIN accounts AS account ON account.id = t.account_id AND account.user_id = t.user_id").
+		Joins("LEFT JOIN accounts AS source_account ON source_account.id = t.source_account_id AND source_account.user_id = t.user_id").
+		Joins("LEFT JOIN accounts AS destination_account ON destination_account.id = t.destination_account_id AND destination_account.user_id = t.user_id").
+		Where("t.user_id = ? AND t.status = ? AND t.occurred_at >= ? AND t.occurred_at <= ?",
 			string(input.UserID),
 			string(transactiondomain.TransactionStatusActive),
 			input.StartAt,
 			input.EndAt,
-		)
+		).
+		Where("t.origin_type <> ?", string(transactiondomain.TransactionOriginTypeCreditCardInvoice))
 
-	if input.Type != nil {
-		query = query.Where("type = ?", string(*input.Type))
+	if input.MovementType != "" && input.MovementType != reportports.MovementTypeAll && input.MovementType != reportports.MovementTypeCreditCardExpense {
+		query = query.Where("t.type = ?", string(input.MovementType))
+	}
+	if input.CategoryID != nil {
+		query = query.Where("t.category_id = ?", string(*input.CategoryID))
 	}
 	if input.AccountID != nil {
 		accountID := string(*input.AccountID)
-		query = query.Where(
-			"account_id = ? OR source_account_id = ? OR destination_account_id = ?",
-			accountID,
-			accountID,
-			accountID,
-		)
+		query = query.Where("t.account_id = ? OR t.source_account_id = ? OR t.destination_account_id = ?", accountID, accountID, accountID)
+	}
+	if input.SettlementStatus != "" && input.SettlementStatus != reportports.SettlementStatusAll {
+		query = query.Where("t.settlement_status = ?", string(input.SettlementStatus))
 	}
 
-	var entities []transactionpersistence.TransactionEntity
-	if err := query.Order("occurred_at ASC, created_at ASC").Find(&entities).Error; err != nil {
+	var rows []movementRow
+	if err := query.Order("t.occurred_at ASC, t.created_at ASC").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-
-	accountNames, err := repository.accountNameMap(ctx, input.UserID)
-	if err != nil {
-		return nil, err
-	}
-
-	rows := make([]reportports.ReportTransactionRow, 0, len(entities))
-	for _, entity := range entities {
-		row := transactionEntityToReportRow(entity)
-		row.AccountName = transactionAccountName(row, accountNames)
-		rows = append(rows, row)
-	}
-	return rows, nil
+	return movementRowsToDTO(rows), nil
 }
 
-func (repository ReportRepository) accountNameMap(
+func (repository ReportRepository) listCardInstallmentMovements(
 	ctx context.Context,
-	userID userdomain.UserID,
-) (map[accountdomain.AccountID]string, error) {
-	accounts, err := repository.ListAccounts(ctx, userID)
-	if err != nil {
+	input reportports.ListFinancialMovementsInput,
+) ([]reportports.FinancialMovementDTO, error) {
+	query := repository.db.WithContext(ctx).
+		Table("card_installments AS installment").
+		Select(strings.Join([]string{
+			"installment.id AS id",
+			"? AS source",
+			"? AS type",
+			"purchase.description AS description",
+			"installment.amount AS amount",
+			"purchase.purchase_date AS occurred_at",
+			"purchase.category_id AS category_id",
+			"cat.name AS category_name",
+			"card.linked_account_id AS account_id",
+			"account.name AS account_name",
+			"CASE WHEN invoice.status = ? THEN ? ELSE ? END AS settlement_status",
+		}, ", "),
+			string(reportports.MovementTypeCreditCardExpense),
+			string(reportports.MovementTypeCreditCardExpense),
+			string(creditcarddomain.InvoiceStatusPaid),
+			string(transactiondomain.SettlementStatusSettled),
+			string(transactiondomain.SettlementStatusPending),
+		).
+		Joins("JOIN card_purchases AS purchase ON purchase.id = installment.purchase_id AND purchase.user_id = installment.user_id").
+		Joins("JOIN card_invoices AS invoice ON invoice.id = installment.invoice_id AND invoice.user_id = installment.user_id").
+		Joins("JOIN credit_cards AS card ON card.id = installment.card_id AND card.user_id = installment.user_id").
+		Joins("LEFT JOIN categories AS cat ON cat.id = purchase.category_id AND cat.user_id = installment.user_id").
+		Joins("LEFT JOIN accounts AS account ON account.id = card.linked_account_id AND account.user_id = installment.user_id").
+		Where("installment.user_id = ? AND installment.status = ? AND purchase.status = ? AND invoice.status <> ? AND purchase.purchase_date >= ? AND purchase.purchase_date <= ?",
+			string(input.UserID),
+			string(creditcarddomain.PurchaseStatusActive),
+			string(creditcarddomain.PurchaseStatusActive),
+			string(creditcarddomain.InvoiceStatusCanceled),
+			input.StartAt,
+			input.EndAt,
+		)
+
+	if input.CategoryID != nil {
+		query = query.Where("purchase.category_id = ?", string(*input.CategoryID))
+	}
+	if input.AccountID != nil {
+		query = query.Where("card.linked_account_id = ?", string(*input.AccountID))
+	}
+	if input.SettlementStatus == reportports.SettlementStatusSettled {
+		query = query.Where("invoice.status = ?", string(creditcarddomain.InvoiceStatusPaid))
+	} else if input.SettlementStatus == reportports.SettlementStatusPending {
+		query = query.Where("invoice.status <> ?", string(creditcarddomain.InvoiceStatusPaid))
+	}
+
+	var rows []movementRow
+	if err := query.Order("purchase.purchase_date ASC, installment.number ASC").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-
-	names := make(map[accountdomain.AccountID]string, len(accounts))
-	for _, account := range accounts {
-		names[account.ID] = account.Name
-	}
-	return names, nil
+	return movementRowsToDTO(rows), nil
 }
 
-func accountEntityToReportRow(entity accountpersistence.AccountEntity) reportports.AccountReportRow {
-	return reportports.AccountReportRow{
-		ID:                      accountdomain.AccountID(entity.ID),
-		Name:                    entity.Name,
-		Type:                    accountdomain.AccountType(entity.Type),
-		Status:                  accountdomain.AccountStatus(entity.Status),
-		InitialBalance:          financedomain.NewMoney(entity.InitialBalance),
-		CurrentBalance:          financedomain.NewMoney(entity.CurrentBalance),
-		IncludeInDashboardTotal: entity.IncludeInDashboardTotal,
+func movementRowsToDTO(rows []movementRow) []reportports.FinancialMovementDTO {
+	movements := make([]reportports.FinancialMovementDTO, 0, len(rows))
+	for _, row := range rows {
+		movements = append(movements, reportports.FinancialMovementDTO{
+			ID:               row.ID,
+			Source:           reportports.MovementType(row.Source),
+			Type:             reportports.MovementType(row.Type),
+			Description:      row.Description,
+			Amount:           financedomain.NewMoney(row.Amount),
+			OccurredAt:       row.OccurredAt,
+			CategoryID:       stringToCategoryID(row.CategoryID),
+			CategoryName:     stringValue(row.CategoryName),
+			AccountID:        stringToAccountID(row.AccountID),
+			AccountName:      stringValue(row.AccountName),
+			SettlementStatus: transactiondomain.SettlementStatus(row.SettlementStatus),
+		})
 	}
-}
-
-func transactionEntityToReportRow(entity transactionpersistence.TransactionEntity) reportports.ReportTransactionRow {
-	return reportports.ReportTransactionRow{
-		ID:                   transactiondomain.TransactionID(entity.ID),
-		Type:                 transactiondomain.TransactionType(entity.Type),
-		Description:          entity.Description,
-		Amount:               financedomain.NewMoney(entity.Amount),
-		OccurredAt:           entity.OccurredAt,
-		AccountID:            stringToAccountID(entity.AccountID),
-		SourceAccountID:      stringToAccountID(entity.SourceAccountID),
-		DestinationAccountID: stringToAccountID(entity.DestinationAccountID),
-	}
+	return movements
 }
 
 func stringToAccountID(value *string) *accountdomain.AccountID {
@@ -157,19 +213,17 @@ func stringToAccountID(value *string) *accountdomain.AccountID {
 	return &converted
 }
 
-func transactionAccountName(
-	transaction reportports.ReportTransactionRow,
-	accountNames map[accountdomain.AccountID]string,
-) string {
-	if transaction.AccountID != nil {
-		return accountNames[*transaction.AccountID]
+func stringToCategoryID(value *string) *categorydomain.CategoryID {
+	if value == nil {
+		return nil
 	}
-	if transaction.SourceAccountID != nil && transaction.DestinationAccountID != nil {
-		source := accountNames[*transaction.SourceAccountID]
-		destination := accountNames[*transaction.DestinationAccountID]
-		if source != "" && destination != "" {
-			return source + " -> " + destination
-		}
+	converted := categorydomain.CategoryID(*value)
+	return &converted
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
 	}
-	return ""
+	return *value
 }

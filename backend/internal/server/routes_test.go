@@ -210,17 +210,24 @@ func TestRegisterRoutesIncludesAuthenticatedReportRoutes(t *testing.T) {
 
 	routes := router.Routes()
 	expected := map[string]string{
-		http.MethodGet + " /api/reports/accounts/pdf":           "",
-		http.MethodGet + " /api/reports/transactions/pdf":       "",
-		http.MethodGet + " /api/reports/period/pdf":             "",
-		http.MethodGet + " /api/reports/monthly/pdf":            "",
-		http.MethodGet + " /api/reports/account/:accountID/pdf": "",
+		http.MethodGet + " /api/reports/financial":     "",
+		http.MethodGet + " /api/reports/financial/pdf": "",
+	}
+	legacy := map[string]struct{}{
+		http.MethodGet + " /api/reports/accounts/pdf":           {},
+		http.MethodGet + " /api/reports/transactions/pdf":       {},
+		http.MethodGet + " /api/reports/period/pdf":             {},
+		http.MethodGet + " /api/reports/monthly/pdf":            {},
+		http.MethodGet + " /api/reports/account/:accountID/pdf": {},
 	}
 
 	for _, route := range routes {
 		key := route.Method + " " + route.Path
 		if _, ok := expected[key]; ok {
 			delete(expected, key)
+		}
+		if _, ok := legacy[key]; ok {
+			t.Fatalf("expected legacy report route to be inactive, got %s", key)
 		}
 	}
 
@@ -229,7 +236,7 @@ func TestRegisterRoutesIncludesAuthenticatedReportRoutes(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/api/reports/accounts/pdf", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/reports/financial", nil)
 
 	router.ServeHTTP(recorder, request)
 

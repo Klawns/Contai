@@ -5,6 +5,7 @@ import (
 	"time"
 
 	accountdomain "contai/internal/account/domain"
+	categorydomain "contai/internal/category/domain"
 	transactiondomain "contai/internal/transactions/domain"
 	userdomain "contai/internal/users/domain"
 )
@@ -17,8 +18,16 @@ type ListReportTransactionsInput struct {
 	AccountID *accountdomain.AccountID
 }
 
+type ListFinancialMovementsInput struct {
+	UserID           userdomain.UserID
+	StartAt          time.Time
+	EndAt            time.Time
+	MovementType     MovementType
+	CategoryID       *categorydomain.CategoryID
+	AccountID        *accountdomain.AccountID
+	SettlementStatus SettlementStatusFilter
+}
+
 type ReportRepository interface {
-	FindAccountByID(ctx context.Context, userID userdomain.UserID, accountID accountdomain.AccountID) (*AccountReportRow, error)
-	ListAccounts(ctx context.Context, userID userdomain.UserID) ([]AccountReportRow, error)
-	ListTransactions(ctx context.Context, input ListReportTransactionsInput) ([]ReportTransactionRow, error)
+	ListFinancialMovements(ctx context.Context, input ListFinancialMovementsInput) ([]FinancialMovementDTO, error)
 }

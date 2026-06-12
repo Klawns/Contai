@@ -3,11 +3,10 @@ package services
 import (
 	"context"
 	"errors"
-	"fmt"
+	"sort"
 	"time"
 
 	accountdomain "contai/internal/account/domain"
-	financedomain "contai/internal/finance/domain"
 	reportports "contai/internal/reports/app/ports"
 	transactiondomain "contai/internal/transactions/domain"
 )
@@ -15,11 +14,10 @@ import (
 var _ reportports.ReportService = ReportService{}
 
 var (
-	ErrReportPeriodInvalid          = errors.New("report period is invalid")
-	ErrReportTransactionTypeInvalid = errors.New("report transaction type is invalid")
-	ErrReportMonthlyPeriodInvalid   = errors.New("report monthly period must be within one month")
-	ErrReportAccountIDRequired      = errors.New("report account id is required")
-	ErrReportAccountNotFound        = errors.New("report account not found")
+	ErrReportPeriodInvalid           = errors.New("report period is invalid")
+	ErrReportMovementTypeInvalid     = errors.New("report movement type is invalid")
+	ErrReportSettlementStatusInvalid = errors.New("report settlement status is invalid")
+	ErrReportGroupByInvalid          = errors.New("report group by is invalid")
 )
 
 type ReportService struct {
@@ -28,262 +26,227 @@ type ReportService struct {
 }
 
 func NewReportService(repository reportports.ReportRepository, renderer reportports.PDFRenderer) ReportService {
-	return ReportService{
-		repository: repository,
-		renderer:   renderer,
-	}
+	return ReportService{repository: repository, renderer: renderer}
 }
 
-func (service ReportService) GenerateAccountsPDF(ctx context.Context, input reportports.GenerateAccountsReportInput) (reportports.PDFFile, error) {
-	if input.UserID == "" {
-		return reportports.PDFFile{}, accountdomain.ErrAccountUserIDRequired
+func (service ReportService) GetFinancialReport(ctx context.Context, input reportports.FinancialReportInput) (reportports.FinancialReportDTO, error) {
+	if err := validateFinancialInput(input); err != nil {
+		return reportports.FinancialReportDTO{}, err
 	}
-
-	generatedAt := input.Now
-	if generatedAt.IsZero() {
-		generatedAt = time.Now()
-	}
-
-	accounts, err := service.repository.ListAccounts(ctx, input.UserID)
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	report := buildAccountsReport(accounts, generatedAt)
-	content, err := service.renderer.RenderAccountsReport(ctx, report)
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	return reportports.PDFFile{
-		Filename: "contai-relatorio-contas.pdf",
-		Content:  content,
-	}, nil
-}
-
-func (service ReportService) GenerateTransactionsPDF(ctx context.Context, input reportports.GenerateTransactionsReportInput) (reportports.PDFFile, error) {
-	if input.UserID == "" {
-		return reportports.PDFFile{}, accountdomain.ErrAccountUserIDRequired
-	}
-	if err := validatePeriod(input.StartAt, input.EndAt); err != nil {
-		return reportports.PDFFile{}, err
-	}
-	if input.Type != transactiondomain.TransactionTypeIncome && input.Type != transactiondomain.TransactionTypeExpense {
-		return reportports.PDFFile{}, ErrReportTransactionTypeInvalid
-	}
-
-	transactions, err := service.repository.ListTransactions(ctx, reportports.ListReportTransactionsInput{
-		UserID:  input.UserID,
-		StartAt: input.StartAt,
-		EndAt:   input.EndAt,
-		Type:    &input.Type,
+	movements, err := service.repository.ListFinancialMovements(ctx, reportports.ListFinancialMovementsInput{
+		UserID:           input.UserID,
+		StartAt:          input.StartAt,
+		EndAt:            input.EndAt,
+		MovementType:     input.MovementType,
+		CategoryID:       input.CategoryID,
+		AccountID:        input.AccountID,
+		SettlementStatus: input.SettlementStatus,
 	})
 	if err != nil {
+		return reportports.FinancialReportDTO{}, err
+	}
+	return buildFinancialReport(input, movements), nil
+}
+
+func (service ReportService) GenerateFinancialPDF(ctx context.Context, input reportports.FinancialReportInput) (reportports.PDFFile, error) {
+	report, err := service.GetFinancialReport(ctx, input)
+	if err != nil {
 		return reportports.PDFFile{}, err
 	}
-
-	title := "Relatorio de receitas por periodo"
-	filename := "contai-relatorio-receitas.pdf"
-	if input.Type == transactiondomain.TransactionTypeExpense {
-		title = "Relatorio de despesas por periodo"
-		filename = "contai-relatorio-despesas.pdf"
-	}
-	report := buildFinancialReport(title, "", transactions, input.StartAt, input.EndAt, reportGeneratedAt(input.Now))
 	content, err := service.renderer.RenderFinancialReport(ctx, report)
 	if err != nil {
 		return reportports.PDFFile{}, err
 	}
-
-	return reportports.PDFFile{Filename: filename, Content: content}, nil
+	return reportports.PDFFile{Filename: "contai-relatorio-financeiro.pdf", Content: content}, nil
 }
 
-func (service ReportService) GeneratePeriodPDF(ctx context.Context, input reportports.PeriodReportInput) (reportports.PDFFile, error) {
+func validateFinancialInput(input reportports.FinancialReportInput) error {
 	if input.UserID == "" {
-		return reportports.PDFFile{}, accountdomain.ErrAccountUserIDRequired
+		return accountdomain.ErrAccountUserIDRequired
 	}
-	if err := validatePeriod(input.StartAt, input.EndAt); err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	transactions, err := service.repository.ListTransactions(ctx, reportports.ListReportTransactionsInput{
-		UserID:  input.UserID,
-		StartAt: input.StartAt,
-		EndAt:   input.EndAt,
-	})
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	report := buildFinancialReport(
-		"Relatorio geral por periodo",
-		"Consolidado de receitas, despesas e transferencias",
-		transactions,
-		input.StartAt,
-		input.EndAt,
-		reportGeneratedAt(input.Now),
-	)
-	content, err := service.renderer.RenderFinancialReport(ctx, report)
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	return reportports.PDFFile{Filename: "contai-relatorio-periodo.pdf", Content: content}, nil
-}
-
-func (service ReportService) GenerateMonthlyPDF(ctx context.Context, input reportports.PeriodReportInput) (reportports.PDFFile, error) {
-	if input.UserID == "" {
-		return reportports.PDFFile{}, accountdomain.ErrAccountUserIDRequired
-	}
-	if err := validatePeriod(input.StartAt, input.EndAt); err != nil {
-		return reportports.PDFFile{}, err
-	}
-	if input.StartAt.Year() != input.EndAt.Year() || input.StartAt.Month() != input.EndAt.Month() {
-		return reportports.PDFFile{}, ErrReportMonthlyPeriodInvalid
-	}
-
-	transactions, err := service.repository.ListTransactions(ctx, reportports.ListReportTransactionsInput{
-		UserID:  input.UserID,
-		StartAt: input.StartAt,
-		EndAt:   input.EndAt,
-	})
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	report := buildFinancialReport(
-		"Relatorio mensal consolidado",
-		input.StartAt.Format("01/2006"),
-		transactions,
-		input.StartAt,
-		input.EndAt,
-		reportGeneratedAt(input.Now),
-	)
-	content, err := service.renderer.RenderFinancialReport(ctx, report)
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	return reportports.PDFFile{Filename: fmt.Sprintf("contai-relatorio-mensal-%s.pdf", input.StartAt.Format("2006-01")), Content: content}, nil
-}
-
-func (service ReportService) GenerateAccountPDF(ctx context.Context, input reportports.GenerateAccountReportInput) (reportports.PDFFile, error) {
-	if input.UserID == "" {
-		return reportports.PDFFile{}, accountdomain.ErrAccountUserIDRequired
-	}
-	if input.AccountID == "" {
-		return reportports.PDFFile{}, ErrReportAccountIDRequired
-	}
-	if err := validatePeriod(input.StartAt, input.EndAt); err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	account, err := service.repository.FindAccountByID(ctx, input.UserID, input.AccountID)
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-	if account == nil {
-		return reportports.PDFFile{}, ErrReportAccountNotFound
-	}
-
-	transactions, err := service.repository.ListTransactions(ctx, reportports.ListReportTransactionsInput{
-		UserID:    input.UserID,
-		StartAt:   input.StartAt,
-		EndAt:     input.EndAt,
-		AccountID: &input.AccountID,
-	})
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	report := buildFinancialReport(
-		"Relatorio por conta bancaria",
-		account.Name,
-		transactions,
-		input.StartAt,
-		input.EndAt,
-		reportGeneratedAt(input.Now),
-	)
-	report.AccountName = account.Name
-	content, err := service.renderer.RenderFinancialReport(ctx, report)
-	if err != nil {
-		return reportports.PDFFile{}, err
-	}
-
-	return reportports.PDFFile{Filename: fmt.Sprintf("contai-relatorio-conta-%s.pdf", input.AccountID), Content: content}, nil
-}
-
-func buildAccountsReport(accounts []reportports.AccountReportRow, generatedAt time.Time) reportports.AccountsReportDTO {
-	rows := make([]reportports.AccountReportRow, 0, len(accounts))
-	var total financedomain.Money
-	var dashboardTotal financedomain.Money
-
-	for _, account := range accounts {
-		rows = append(rows, reportports.AccountReportRow{
-			ID:                      account.ID,
-			Name:                    account.Name,
-			Type:                    account.Type,
-			Status:                  account.Status,
-			InitialBalance:          account.InitialBalance,
-			CurrentBalance:          account.CurrentBalance,
-			IncludeInDashboardTotal: account.IncludeInDashboardTotal,
-		})
-		total = total.Add(account.CurrentBalance)
-		if account.Status == accountdomain.AccountStatusActive && account.IncludeInDashboardTotal {
-			dashboardTotal = dashboardTotal.Add(account.CurrentBalance)
-		}
-	}
-
-	return reportports.AccountsReportDTO{
-		GeneratedAt:    generatedAt,
-		Accounts:       rows,
-		TotalBalance:   total,
-		DashboardTotal: dashboardTotal,
-	}
-}
-
-func validatePeriod(startAt, endAt time.Time) error {
-	if startAt.IsZero() || endAt.IsZero() || endAt.Before(startAt) {
+	if input.StartAt.IsZero() || input.EndAt.IsZero() || input.EndAt.Before(input.StartAt) {
 		return ErrReportPeriodInvalid
+	}
+	switch input.MovementType {
+	case "", reportports.MovementTypeAll, reportports.MovementTypeIncome, reportports.MovementTypeExpense, reportports.MovementTypeCreditCardExpense, reportports.MovementTypeTransfer:
+	default:
+		return ErrReportMovementTypeInvalid
+	}
+	switch input.SettlementStatus {
+	case "", reportports.SettlementStatusAll, reportports.SettlementStatusSettled, reportports.SettlementStatusPending:
+	default:
+		return ErrReportSettlementStatusInvalid
+	}
+	switch input.GroupBy {
+	case "", reportports.ReportGroupByNone, reportports.ReportGroupByCategory, reportports.ReportGroupByAccount, reportports.ReportGroupByDay, reportports.ReportGroupByMonth:
+	default:
+		return ErrReportGroupByInvalid
 	}
 	return nil
 }
 
-func reportGeneratedAt(value time.Time) time.Time {
-	if value.IsZero() {
-		return time.Now()
+func buildFinancialReport(input reportports.FinancialReportInput, movements []reportports.FinancialMovementDTO) reportports.FinancialReportDTO {
+	generatedAt := input.Now
+	if generatedAt.IsZero() {
+		generatedAt = time.Now()
 	}
-	return value
+	groupBy := input.GroupBy
+	if groupBy == "" {
+		groupBy = reportports.ReportGroupByNone
+	}
+
+	sort.SliceStable(movements, func(i, j int) bool {
+		if movements[i].OccurredAt.Equal(movements[j].OccurredAt) {
+			return movements[i].Description < movements[j].Description
+		}
+		return movements[i].OccurredAt.Before(movements[j].OccurredAt)
+	})
+
+	summary := buildSummary(movements)
+	return reportports.FinancialReportDTO{
+		Title:        "Relatorio financeiro",
+		GeneratedAt:  generatedAt,
+		StartAt:      input.StartAt,
+		EndAt:        input.EndAt,
+		Summary:      summary,
+		Movements:    movements,
+		Groups:       buildGroups(movements, groupBy),
+		Charts:       buildCharts(movements),
+		IncomeTotal:  summary.IncomeTotal,
+		ExpenseTotal: summary.ExpenseTotal,
+		NetTotal:     summary.PeriodResult,
+	}
 }
 
-func buildFinancialReport(title string, subtitle string, transactions []reportports.ReportTransactionRow, startAt, endAt, generatedAt time.Time) reportports.FinancialReportDTO {
-	var incomeTotal financedomain.Money
-	var expenseTotal financedomain.Money
-	var transferInTotal financedomain.Money
-	var transferOutTotal financedomain.Money
-
-	for _, transaction := range transactions {
-		switch transaction.Type {
-		case transactiondomain.TransactionTypeIncome:
-			incomeTotal = incomeTotal.Add(transaction.Amount)
-		case transactiondomain.TransactionTypeExpense:
-			expenseTotal = expenseTotal.Add(transaction.Amount)
-		case transactiondomain.TransactionTypeTransfer:
-			transferInTotal = transferInTotal.Add(transaction.Amount)
-			transferOutTotal = transferOutTotal.Add(transaction.Amount)
+func buildSummary(movements []reportports.FinancialMovementDTO) reportports.FinancialReportSummaryDTO {
+	var summary reportports.FinancialReportSummaryDTO
+	for _, movement := range movements {
+		if movement.Type == reportports.MovementTypeTransfer {
+			continue
+		}
+		if movement.Type == reportports.MovementTypeIncome {
+			summary.IncomeTotal = summary.IncomeTotal.Add(movement.Amount)
+		} else {
+			summary.ExpenseTotal = summary.ExpenseTotal.Add(movement.Amount)
+		}
+		if movement.SettlementStatus == transactiondomain.SettlementStatusSettled {
+			summary.SettledTotal = summary.SettledTotal.Add(movement.Amount)
+		} else {
+			summary.PendingTotal = summary.PendingTotal.Add(movement.Amount)
 		}
 	}
+	summary.PeriodResult = summary.IncomeTotal.Sub(summary.ExpenseTotal)
+	return summary
+}
 
-	return reportports.FinancialReportDTO{
-		Title:            title,
-		Subtitle:         subtitle,
-		GeneratedAt:      generatedAt,
-		StartAt:          startAt,
-		EndAt:            endAt,
-		Transactions:     transactions,
-		IncomeTotal:      incomeTotal,
-		ExpenseTotal:     expenseTotal,
-		TransferInTotal:  transferInTotal,
-		TransferOutTotal: transferOutTotal,
-		NetTotal:         incomeTotal.Sub(expenseTotal),
+func buildGroups(movements []reportports.FinancialMovementDTO, groupBy reportports.ReportGroupBy) []reportports.FinancialReportGroupDTO {
+	if groupBy == reportports.ReportGroupByNone {
+		return []reportports.FinancialReportGroupDTO{}
 	}
+	groups := make(map[string]*reportports.FinancialReportGroupDTO)
+	for _, movement := range movements {
+		key, label := groupKey(movement, groupBy)
+		group := groups[key]
+		if group == nil {
+			group = &reportports.FinancialReportGroupDTO{Key: key, Label: label}
+			groups[key] = group
+		}
+		group.Count++
+		group.Total = group.Total.Add(movement.Amount)
+		if movement.Type == reportports.MovementTypeIncome {
+			group.IncomeTotal = group.IncomeTotal.Add(movement.Amount)
+		} else if movement.Type != reportports.MovementTypeTransfer {
+			group.ExpenseTotal = group.ExpenseTotal.Add(movement.Amount)
+		}
+		group.NetTotal = group.IncomeTotal.Sub(group.ExpenseTotal)
+	}
+	result := make([]reportports.FinancialReportGroupDTO, 0, len(groups))
+	for _, group := range groups {
+		result = append(result, *group)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Key < result[j].Key })
+	return result
+}
+
+func groupKey(movement reportports.FinancialMovementDTO, groupBy reportports.ReportGroupBy) (string, string) {
+	switch groupBy {
+	case reportports.ReportGroupByCategory:
+		if movement.CategoryID != nil {
+			return string(*movement.CategoryID), fallbackLabel(movement.CategoryName, "Sem categoria")
+		}
+		return "none", "Sem categoria"
+	case reportports.ReportGroupByAccount:
+		if movement.AccountID != nil {
+			return string(*movement.AccountID), fallbackLabel(movement.AccountName, "Sem conta")
+		}
+		return "none", "Sem conta"
+	case reportports.ReportGroupByMonth:
+		return movement.OccurredAt.Format("2006-01"), movement.OccurredAt.Format("01/2006")
+	default:
+		return movement.OccurredAt.Format("2006-01-02"), movement.OccurredAt.Format("02/01/2006")
+	}
+}
+
+func buildCharts(movements []reportports.FinancialMovementDTO) reportports.FinancialReportChartsDTO {
+	return reportports.FinancialReportChartsDTO{
+		IncomeVsExpense:    buildTimeSeries(movements, "2006-01", "01/2006"),
+		ExpensesByCategory: buildCategoryExpenses(movements),
+		Evolution:          buildTimeSeries(movements, "2006-01-02", "02/01"),
+	}
+}
+
+func buildTimeSeries(movements []reportports.FinancialMovementDTO, keyFormat, labelFormat string) []reportports.FinancialReportSeriesPointDTO {
+	points := make(map[string]*reportports.FinancialReportSeriesPointDTO)
+	for _, movement := range movements {
+		if movement.Type == reportports.MovementTypeTransfer {
+			continue
+		}
+		key := movement.OccurredAt.Format(keyFormat)
+		point := points[key]
+		if point == nil {
+			point = &reportports.FinancialReportSeriesPointDTO{Key: key, Label: movement.OccurredAt.Format(labelFormat)}
+			points[key] = point
+		}
+		if movement.Type == reportports.MovementTypeIncome {
+			point.IncomeTotal = point.IncomeTotal.Add(movement.Amount)
+		} else {
+			point.ExpenseTotal = point.ExpenseTotal.Add(movement.Amount)
+		}
+		point.NetTotal = point.IncomeTotal.Sub(point.ExpenseTotal)
+	}
+	result := make([]reportports.FinancialReportSeriesPointDTO, 0, len(points))
+	for _, point := range points {
+		result = append(result, *point)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Key < result[j].Key })
+	return result
+}
+
+func buildCategoryExpenses(movements []reportports.FinancialMovementDTO) []reportports.FinancialReportCategoryChartDTO {
+	totals := make(map[string]*reportports.FinancialReportCategoryChartDTO)
+	for _, movement := range movements {
+		if movement.Type == reportports.MovementTypeIncome || movement.Type == reportports.MovementTypeTransfer || movement.CategoryID == nil {
+			continue
+		}
+		key := string(*movement.CategoryID)
+		total := totals[key]
+		if total == nil {
+			total = &reportports.FinancialReportCategoryChartDTO{CategoryID: *movement.CategoryID, Name: fallbackLabel(movement.CategoryName, "Sem categoria")}
+			totals[key] = total
+		}
+		total.Total = total.Total.Add(movement.Amount)
+	}
+	result := make([]reportports.FinancialReportCategoryChartDTO, 0, len(totals))
+	for _, total := range totals {
+		result = append(result, *total)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Total.Cents() > result[j].Total.Cents() })
+	return result
+}
+
+func fallbackLabel(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }

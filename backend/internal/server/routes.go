@@ -50,9 +50,6 @@ func registerRoutes(router *gin.Engine, dependencies dependencies) {
 	authenticated.PATCH("/credit-card-invoices/:invoiceID/pay", limitBody(authBodyLimitBytes), dependencies.creditCardHandler.PayInvoice)
 	authenticated.GET("/dashboard/monthly", dependencies.dashboardHandler.GetMonthlyDashboard)
 	authenticated.GET("/dashboard/monthly-series", dependencies.dashboardHandler.GetMonthlySeries)
-	authenticated.GET("/reports/accounts/pdf", dependencies.reportHandler.DownloadAccountsPDF)
-	authenticated.GET("/reports/transactions/pdf", dependencies.reportHandler.DownloadTransactionsPDF)
-	authenticated.GET("/reports/period/pdf", dependencies.reportHandler.DownloadPeriodPDF)
-	authenticated.GET("/reports/monthly/pdf", dependencies.reportHandler.DownloadMonthlyPDF)
-	authenticated.GET("/reports/account/:accountID/pdf", dependencies.reportHandler.DownloadAccountPDF)
+	authenticated.GET("/reports/financial", dependencies.reportHandler.GetFinancialReport)
+	authenticated.GET("/reports/financial/pdf", dependencies.reportHandler.DownloadFinancialPDF)
 }
