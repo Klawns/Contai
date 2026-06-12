@@ -292,7 +292,7 @@ func (repository Repository) sumCreditCardLimitUsed(ctx context.Context, userID 
 	if err := repository.db.WithContext(ctx).
 		Table("card_installments").
 		Select("COALESCE(SUM(card_installments.amount), 0)").
-		Joins("JOIN card_invoices ON card_invoices.id = card_installments.invoice_id").
+		Joins("JOIN card_invoices ON card_invoices.id = card_installments.invoice_id AND card_invoices.user_id = card_installments.user_id").
 		Where("card_installments.user_id = ? AND card_installments.card_id = ?", string(userID), cardID).
 		Where("card_installments.status = ?", string(creditcarddomain.PurchaseStatusActive)).
 		Where("card_invoices.status NOT IN ?", []string{string(creditcarddomain.InvoiceStatusPaid), string(creditcarddomain.InvoiceStatusCanceled)}).
@@ -307,7 +307,7 @@ func (repository Repository) findCurrentInvoice(ctx context.Context, userID user
 	err := repository.db.WithContext(ctx).
 		Table("card_invoices").
 		Select("card_invoices.id, card_invoices.reference_month, card_invoices.due_at, card_invoices.status, card_invoices.paid_at, COALESCE(SUM(card_installments.amount), 0) AS amount").
-		Joins("LEFT JOIN card_installments ON card_installments.invoice_id = card_invoices.id AND card_installments.status = ?", string(creditcarddomain.PurchaseStatusActive)).
+		Joins("LEFT JOIN card_installments ON card_installments.invoice_id = card_invoices.id AND card_installments.user_id = card_invoices.user_id AND card_installments.status = ?", string(creditcarddomain.PurchaseStatusActive)).
 		Where("card_invoices.user_id = ? AND card_invoices.card_id = ? AND card_invoices.reference_month = ?", string(userID), cardID, creditcarddomain.FirstDayOfMonth(referenceMonth)).
 		Group("card_invoices.id, card_invoices.reference_month, card_invoices.due_at, card_invoices.status, card_invoices.paid_at").
 		First(&row).Error

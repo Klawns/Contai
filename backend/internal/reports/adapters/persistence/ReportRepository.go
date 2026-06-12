@@ -98,7 +98,7 @@ func (repository ReportRepository) listTransactionMovements(
 		Joins("LEFT JOIN accounts AS account ON account.id = t.account_id AND account.user_id = t.user_id").
 		Joins("LEFT JOIN accounts AS source_account ON source_account.id = t.source_account_id AND source_account.user_id = t.user_id").
 		Joins("LEFT JOIN accounts AS destination_account ON destination_account.id = t.destination_account_id AND destination_account.user_id = t.user_id").
-		Where("t.user_id = ? AND t.status = ? AND t.occurred_at >= ? AND t.occurred_at <= ?",
+		Where("t.user_id = ? AND t.status = ? AND t.removed_at IS NULL AND t.occurred_at >= ? AND t.occurred_at <= ?",
 			string(input.UserID),
 			string(transactiondomain.TransactionStatusActive),
 			input.StartAt,
@@ -114,7 +114,7 @@ func (repository ReportRepository) listTransactionMovements(
 	}
 	if input.AccountID != nil {
 		accountID := string(*input.AccountID)
-		query = query.Where("t.account_id = ? OR t.source_account_id = ? OR t.destination_account_id = ?", accountID, accountID, accountID)
+		query = query.Where("(t.account_id = ? OR t.source_account_id = ? OR t.destination_account_id = ?)", accountID, accountID, accountID)
 	}
 	if input.SettlementStatus != "" && input.SettlementStatus != reportports.SettlementStatusAll {
 		query = query.Where("t.settlement_status = ?", string(input.SettlementStatus))

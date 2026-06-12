@@ -68,7 +68,7 @@ func (repository TransactionRepository) FindTransactionByIDForUpdate(ctx context
 
 func (repository TransactionRepository) FindTransactionsByUserID(ctx context.Context, input ports.ListTransactionsInput) ([]domain.Transaction, error) {
 	query := repository.db.WithContext(ctx).
-		Where("user_id = ? AND status = ?", string(input.UserID), string(domain.TransactionStatusActive))
+		Where("user_id = ? AND status = ? AND removed_at IS NULL", string(input.UserID), string(domain.TransactionStatusActive))
 	if input.StartAt != nil {
 		query = query.Where("occurred_at >= ?", *input.StartAt)
 	}
@@ -77,7 +77,7 @@ func (repository TransactionRepository) FindTransactionsByUserID(ctx context.Con
 	}
 	if input.AccountID != nil {
 		accountID := string(*input.AccountID)
-		query = query.Where("account_id = ? OR source_account_id = ? OR destination_account_id = ?", accountID, accountID, accountID)
+		query = query.Where("(account_id = ? OR source_account_id = ? OR destination_account_id = ?)", accountID, accountID, accountID)
 	}
 	if input.AccountIDNone {
 		query = query.Where("type IN ? AND account_id IS NULL", []string{string(domain.TransactionTypeIncome), string(domain.TransactionTypeExpense)})

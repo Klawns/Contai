@@ -13,6 +13,7 @@ var (
 	ErrCommitmentInvalidType            = errors.New("commitment type is invalid")
 	ErrCommitmentInvalidStatus          = errors.New("commitment status is invalid")
 	ErrCommitmentInvalidRecurrence      = errors.New("commitment recurrence is invalid")
+	ErrCommitmentInvalidPagination      = errors.New("commitment pagination is invalid")
 	ErrCommitmentNotFound               = errors.New("commitment not found")
 	ErrCommitmentNotPending             = errors.New("commitment is not pending")
 	ErrCommitmentAccountNotFound        = errors.New("commitment account not found")

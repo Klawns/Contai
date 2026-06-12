@@ -238,7 +238,7 @@ func parseOptionalNonNegativeInt(value string) (int, error) {
 	}
 	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed < 0 {
-		return 0, domain.ErrCommitmentInvalidStatus
+		return 0, domain.ErrCommitmentInvalidPagination
 	}
 	return parsed, nil
 }
@@ -276,7 +276,8 @@ func writeError(ctx *gin.Context, err error) {
 		errors.Is(err, domain.ErrCommitmentCategoryIDRequired),
 		errors.Is(err, domain.ErrCommitmentInvalidType),
 		errors.Is(err, domain.ErrCommitmentInvalidStatus),
-		errors.Is(err, domain.ErrCommitmentInvalidRecurrence):
+		errors.Is(err, domain.ErrCommitmentInvalidRecurrence),
+		errors.Is(err, domain.ErrCommitmentInvalidPagination):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid commitment"})
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})

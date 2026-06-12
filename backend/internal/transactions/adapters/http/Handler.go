@@ -317,7 +317,7 @@ func parseOptionalNonNegativeInt(value string) (int, error) {
 	}
 	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed < 0 {
-		return 0, domain.ErrTransactionInvalidType
+		return 0, domain.ErrTransactionInvalidPagination
 	}
 	return parsed, nil
 }
@@ -363,7 +363,8 @@ func writeError(ctx *gin.Context, err error) {
 		errors.Is(err, domain.ErrTransactionSettlementStatusRequired),
 		errors.Is(err, domain.ErrTransactionInvalidSettlementStatus),
 		errors.Is(err, domain.ErrTransactionInvalidSettledAt),
-		errors.Is(err, domain.ErrTransactionInvalidRecurrence):
+		errors.Is(err, domain.ErrTransactionInvalidRecurrence),
+		errors.Is(err, domain.ErrTransactionInvalidPagination):
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid transaction"})
 	default:
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})

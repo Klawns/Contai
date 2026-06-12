@@ -19,6 +19,8 @@ import (
 
 var _ ports.CommitmentService = CommitmentService{}
 
+const maxListLimit = 500
+
 type CommitmentService struct {
 	commitmentRepository   ports.CommitmentRepository
 	transactionRepository  transactionports.TransactionRepository
@@ -65,8 +67,8 @@ func (service CommitmentService) ListCommitments(
 	if input.EffectiveStatus != nil && !isValidEffectiveStatus(*input.EffectiveStatus) {
 		return nil, domain.ErrCommitmentInvalidStatus
 	}
-	if input.Limit < 0 || input.Offset < 0 {
-		return nil, domain.ErrCommitmentInvalidStatus
+	if input.Limit < 0 || input.Offset < 0 || input.Limit > maxListLimit {
+		return nil, domain.ErrCommitmentInvalidPagination
 	}
 
 	commitments, err := service.commitmentRepository.FindCommitmentsByUserID(ctx, input)

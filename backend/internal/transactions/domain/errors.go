@@ -19,6 +19,7 @@ var (
 	ErrTransactionInvalidSettlementStatus         = errors.New("transaction settlement status is invalid")
 	ErrTransactionInvalidSettledAt                = errors.New("transaction settled at is invalid")
 	ErrTransactionInvalidRecurrence               = errors.New("transaction recurrence is invalid")
+	ErrTransactionInvalidPagination               = errors.New("transaction pagination is invalid")
 	ErrTransactionNotFound                        = errors.New("transaction not found")
 	ErrTransactionRemoved                         = errors.New("transaction is removed")
 	ErrTransactionAccountNotFound                 = errors.New("transaction account not found")

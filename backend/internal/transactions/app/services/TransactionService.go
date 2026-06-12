@@ -16,6 +16,8 @@ import (
 
 var _ ports.TransactionService = TransactionService{}
 
+const maxListLimit = 500
+
 type TransactionService struct {
 	transactionRepository ports.TransactionRepository
 	accountRepository     accountports.AccountRepository
@@ -78,8 +80,8 @@ func (service TransactionService) ListTransactions(ctx context.Context, input po
 	if input.SettlementStatus != nil && !isValidSettlementStatus(*input.SettlementStatus) {
 		return nil, domain.ErrTransactionInvalidSettlementStatus
 	}
-	if input.Limit < 0 || input.Offset < 0 {
-		return nil, domain.ErrTransactionInvalidType
+	if input.Limit < 0 || input.Offset < 0 || input.Limit > maxListLimit {
+		return nil, domain.ErrTransactionInvalidPagination
 	}
 
 	transactions, err := service.transactionRepository.FindTransactionsByUserID(ctx, input)

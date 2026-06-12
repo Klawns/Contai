@@ -185,7 +185,7 @@ func (repository Repository) FindInvoicesByPurchaseID(ctx context.Context, purch
 	if err := repository.db.WithContext(ctx).
 		Table("card_invoices").
 		Select("DISTINCT card_invoices.*").
-		Joins("JOIN card_installments ON card_installments.invoice_id = card_invoices.id").
+		Joins("JOIN card_installments ON card_installments.invoice_id = card_invoices.id AND card_installments.user_id = card_invoices.user_id").
 		Where("card_installments.purchase_id = ? AND card_installments.user_id = ?", string(purchaseID), string(userID)).
 		Find(&entities).Error; err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (repository Repository) SumLimitUsed(ctx context.Context, cardID domain.Cre
 	if err := repository.db.WithContext(ctx).
 		Table("card_installments").
 		Select("COALESCE(SUM(card_installments.amount), 0)").
-		Joins("JOIN card_invoices ON card_invoices.id = card_installments.invoice_id").
+		Joins("JOIN card_invoices ON card_invoices.id = card_installments.invoice_id AND card_invoices.user_id = card_installments.user_id").
 		Where("card_installments.card_id = ? AND card_installments.user_id = ?", string(cardID), string(userID)).
 		Where("card_installments.status = ?", string(domain.PurchaseStatusActive)).
 		Where("card_invoices.status NOT IN ?", []string{string(domain.InvoiceStatusPaid), string(domain.InvoiceStatusCanceled)}).
