@@ -75,7 +75,7 @@ export function ReportsFilterForm({
 
   return (
     <form
-      className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-[28px] bg-white pt-2 shadow-[0_-1px_8px_rgba(17,24,39,0.04)]"
+      className="scrollbar-none flex min-h-0 w-full flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-t-[28px] bg-white pt-2 shadow-[0_-1px_8px_rgba(17,24,39,0.04)]"
       onSubmit={onSubmit}
     >
       <ReportDateField
@@ -176,7 +176,7 @@ export function ReportsFilterForm({
         </p>
       ) : null}
 
-      <div className="sticky bottom-0 bg-white/96 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-5 backdrop-blur md:static md:bg-transparent md:px-5 md:pb-5 md:pt-6 md:backdrop-blur-none">
+      <div className="sticky bottom-[var(--app-mobile-sticky-bottom)] bg-white/96 px-4 pb-4 pt-5 backdrop-blur md:static md:bg-transparent md:px-5 md:pb-5 md:pt-6 md:backdrop-blur-none">
         <button
           type="submit"
           disabled={isExporting}

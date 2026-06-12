@@ -152,6 +152,20 @@ function StatePanel({
   )
 }
 
+function AccountStatePage({
+  tone = 'default',
+  children,
+}: {
+  tone?: 'default' | 'danger'
+  children: React.ReactNode
+}) {
+  return (
+    <main className="scrollbar-none h-full min-h-0 w-full overflow-y-auto overflow-x-hidden bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left md:px-8">
+      <StatePanel tone={tone}>{children}</StatePanel>
+    </main>
+  )
+}
+
 export function AccountListPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -168,9 +182,9 @@ export function AccountListPage() {
   }, [searchParams, setSearchParams])
 
   return (
-    <main className="min-h-svh w-full min-w-0 bg-[#6818e8] text-left" aria-label="Contas">
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-[#6818e8] shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none">
-        <header className="bg-[#6818e8] px-5 pb-5 pt-[calc(18px+env(safe-area-inset-top))] text-white md:px-7 md:pt-6">
+    <main className="h-full min-h-0 w-full min-w-0 overflow-hidden bg-[#6818e8] text-left" aria-label="Contas">
+      <section className="mx-auto flex h-full min-h-0 w-full max-w-[520px] flex-col overflow-hidden bg-[#6818e8] shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none">
+        <header className="flex-none bg-[#6818e8] px-5 pb-5 pt-[calc(18px+env(safe-area-inset-top))] text-white md:px-7 md:pt-6">
           <div className="mx-auto grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center">
             <button
               type="button"
@@ -196,7 +210,7 @@ export function AccountListPage() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col rounded-t-[26px] bg-white px-5 pb-[calc(88px+env(safe-area-inset-bottom))] pt-4 md:px-7 md:pb-10">
+        <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-t-[26px] bg-white px-5 pb-[var(--app-mobile-content-bottom)] pt-4 md:px-7 md:pb-10">
           <div className="flex w-full min-w-0 flex-1 flex-col gap-2.5">
             <section className="border-b border-[#f0ebf6] pb-4">
               <div className="min-w-0">
@@ -247,15 +261,15 @@ export function AccountEditPage() {
   const account = accountsQuery.data?.find((item) => item.id === accountId)
 
   if (!accountId) {
-    return <StatePanel tone="danger">Conta nao informada.</StatePanel>
+    return <AccountStatePage tone="danger">Conta nao informada.</AccountStatePage>
   }
 
   if (accountsQuery.isLoading) {
-    return <StatePanel>Carregando conta...</StatePanel>
+    return <AccountStatePage>Carregando conta...</AccountStatePage>
   }
 
   if (accountsQuery.isError || !account) {
-    return <StatePanel tone="danger">Nao foi possivel encontrar a conta.</StatePanel>
+    return <AccountStatePage tone="danger">Nao foi possivel encontrar a conta.</AccountStatePage>
   }
 
   return <AccountForm mode="edit" account={account} />

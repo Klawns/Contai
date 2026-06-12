@@ -75,7 +75,7 @@ export function PlanningPage() {
 
   return (
     <TransactionsPageLayout animationKey={`${type}-${formatMonthQuery(selectedMonth)}`}>
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-[#6818e8] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none">
+      <section className="mx-auto flex h-full min-h-0 w-full max-w-[520px] flex-col overflow-hidden bg-[#6818e8] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none">
         <PlanningHeader
           selectedMonth={selectedMonth}
           onBack={() => navigate('/')}
@@ -86,7 +86,7 @@ export function PlanningPage() {
           onSelectMonth={updateSelectedMonth}
         />
 
-        <div className="flex flex-1 flex-col rounded-t-[26px] bg-white px-5 pb-[calc(88px+env(safe-area-inset-bottom))] pt-4 md:px-7 md:pb-10">
+        <div className="scrollbar-none flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-t-[26px] bg-white px-5 pb-[var(--app-mobile-content-bottom)] pt-4 md:px-7 md:pb-10">
           <div className="flex w-full min-w-0 flex-1 flex-col gap-3">
             <PlanningTabs type={type} onSelectType={handleSelectType} />
             <PlanningTotals totals={totals} />

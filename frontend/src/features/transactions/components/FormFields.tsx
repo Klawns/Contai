@@ -228,7 +228,7 @@ type FormActionButtonProps = {
 
 export function FormActionButton({ isPending, children }: FormActionButtonProps) {
   return (
-    <div className="sticky bottom-0 bg-white/96 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-5 backdrop-blur md:static md:bg-transparent md:px-5 md:pb-5 md:pt-6 md:backdrop-blur-none">
+    <div className="sticky bottom-[var(--app-mobile-sticky-bottom)] bg-white/96 px-4 pb-4 pt-5 backdrop-blur md:static md:bg-transparent md:px-5 md:pb-5 md:pt-6 md:backdrop-blur-none">
       <button
         type="submit"
         disabled={isPending}

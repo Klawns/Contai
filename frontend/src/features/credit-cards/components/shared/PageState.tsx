@@ -18,7 +18,7 @@ export function StatePanel({
 export function FormLoading({ message }: { message: string }) {
   return (
     <TransactionsPageLayout variant="create" tone="expense" animationKey="form-loading">
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left md:mx-0 md:max-w-none md:px-8">
+      <section className="scrollbar-none mx-auto flex h-full min-h-0 w-full max-w-[520px] flex-col overflow-y-auto overflow-x-hidden bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left md:mx-0 md:max-w-none md:px-8">
         <TransactionStateMessage>{message}</TransactionStateMessage>
       </section>
     </TransactionsPageLayout>
@@ -28,7 +28,7 @@ export function FormLoading({ message }: { message: string }) {
 export function FormInvalid({ message, onBack }: { message: string; onBack: () => void }) {
   return (
     <TransactionsPageLayout variant="create" tone="expense" animationKey="form-invalid">
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left md:mx-0 md:max-w-none md:px-8">
+      <section className="scrollbar-none mx-auto flex h-full min-h-0 w-full max-w-[520px] flex-col overflow-y-auto overflow-x-hidden bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left md:mx-0 md:max-w-none md:px-8">
         <button type="button" className="self-start text-[14px] font-semibold text-[#6818e8]" onClick={onBack}>Voltar</button>
         <TransactionStateMessage tone="danger">{message}</TransactionStateMessage>
       </section>

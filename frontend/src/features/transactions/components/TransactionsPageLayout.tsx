@@ -29,8 +29,8 @@ export function TransactionsPageLayout({
       key={animationKey}
       className={
         isCreateVariant
-          ? `min-h-svh w-full bg-gradient-to-b ${toneClasses[tone]} from-0% via-[#f4f7fb] via-[215px] to-[#f4f7fb] text-left md:bg-[#f4f7fb] md:bg-none`
-          : 'min-h-svh w-full bg-[#6818e8] text-left'
+          ? `h-full min-h-0 w-full overflow-hidden bg-gradient-to-b ${toneClasses[tone]} from-0% via-[#f4f7fb] via-[215px] to-[#f4f7fb] text-left md:bg-[#f4f7fb] md:bg-none`
+          : 'h-full min-h-0 w-full overflow-hidden bg-[#6818e8] text-left'
       }
       aria-label="Transacoes"
       initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
@@ -40,8 +40,8 @@ export function TransactionsPageLayout({
       <div
         className={
           isCreateVariant
-            ? 'grid min-h-svh w-full min-w-0'
-            : 'grid min-h-svh w-full min-w-0'
+            ? 'grid h-full min-h-0 w-full min-w-0 overflow-hidden'
+            : 'grid h-full min-h-0 w-full min-w-0 overflow-hidden'
         }
       >
         {children}

@@ -55,7 +55,7 @@ export function PayCardInvoicePage() {
     <>
       <TransactionsPageLayout variant="create" tone="expense" animationKey={`pay-invoice-${invoice.id}`}>
         <form
-          className="mx-auto min-h-svh w-full max-w-[520px] bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
+          className="scrollbar-none mx-auto h-full min-h-0 w-full max-w-[520px] overflow-y-auto overflow-x-hidden bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
           onSubmit={handleSubmit((values) => {
             payMutation.mutate(toPayInvoicePayload(values), { onSuccess: () => navigate('/transactions') })
           })}
@@ -71,7 +71,7 @@ export function PayCardInvoicePage() {
               <HeaderAmountInput label="Valor" value={invoice.amount} onChange={() => undefined} />
             </div>
           </div>
-          <div className="-mt-6 overflow-hidden rounded-t-[28px] bg-white">
+          <div className="-mt-6 rounded-t-[28px] bg-white">
             <Controller control={control} name="occurredOn" render={({ field }) => (
               <DateInput label="Pagamento" value={field.value} accentColor="#147a46" error={errors.occurredOn?.message} onChange={field.onChange} />
             )} />

@@ -18,7 +18,7 @@ export function CommitmentPageState({
 }: CommitmentPageStateProps) {
   return (
     <TransactionsPageLayout variant="create" tone={tone} animationKey={animationKey}>
-      <section className="mx-auto flex min-h-svh w-full max-w-[520px] flex-col bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:px-8 md:shadow-none">
+      <section className="scrollbar-none mx-auto flex h-full min-h-0 w-full max-w-[520px] flex-col overflow-y-auto overflow-x-hidden bg-white px-5 py-[calc(28px+env(safe-area-inset-top))] text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:px-8 md:shadow-none">
         {onBack ? (
           <button
             type="button"

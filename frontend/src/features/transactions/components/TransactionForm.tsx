@@ -279,7 +279,7 @@ export function TransactionForm({
   return (
     <>
       <form
-        className="mx-auto min-h-svh w-full max-w-[520px] bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
+        className="scrollbar-none mx-auto h-full min-h-0 w-full max-w-[520px] overflow-y-auto overflow-x-hidden bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
         onSubmit={handleSubmit((values) => {
           const base = {
             description: values.description.trim(),
@@ -382,7 +382,7 @@ export function TransactionForm({
           </div>
         </div>
 
-        <div className="-mt-6 overflow-hidden rounded-t-[28px] bg-white md:rounded-t-[32px]">
+        <div className="-mt-6 rounded-t-[28px] bg-white md:rounded-t-[32px]">
           {type !== 'transfer' ? (
             <Controller
               control={control}

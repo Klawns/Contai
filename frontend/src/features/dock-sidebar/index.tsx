@@ -31,9 +31,9 @@ export function DockSidebarLayout({
   const quickActions = useMemo(() => getQuickActions(goToPath), [goToPath])
 
   return (
-    <div className="min-h-svh bg-[#f4f7fb] md:grid md:grid-cols-[232px_minmax(0,1fr)]">
+    <div className="h-[var(--app-viewport-height)] min-h-0 overflow-hidden bg-[#f4f7fb] md:grid md:grid-cols-[232px_minmax(0,1fr)]">
       <Sidebar items={navigationItems} isLoggingOut={isLoggingOut} onLogout={onLogout} />
-      <div className="relative min-h-svh md:min-w-0">
+      <div className="relative h-full min-h-0 overflow-hidden md:min-w-0">
         {children}
         <QuickActionOverlay
           actions={quickActions}

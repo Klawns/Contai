@@ -17,7 +17,7 @@ export function PlanningHeader({
   onSelectMonth,
 }: PlanningHeaderProps) {
   return (
-    <header className="bg-[#6818e8] px-5 pb-5 pt-[calc(18px+env(safe-area-inset-top))] text-white md:px-7 md:pt-6">
+    <header className="flex-none bg-[#6818e8] px-5 pb-5 pt-[calc(18px+env(safe-area-inset-top))] text-white md:px-7 md:pt-6">
       <div className="mx-auto grid w-full grid-cols-[44px_minmax(0,1fr)_44px] items-center">
         <button
           type="button"

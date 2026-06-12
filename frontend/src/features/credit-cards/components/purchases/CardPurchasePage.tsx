@@ -67,7 +67,7 @@ export function CardPurchasePage() {
     <>
       <TransactionsPageLayout variant="create" tone="expense" animationKey="card-purchase">
         <form
-          className="mx-auto min-h-svh w-full max-w-[520px] bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
+          className="scrollbar-none mx-auto h-full min-h-0 w-full max-w-[520px] overflow-y-auto overflow-x-hidden bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:max-w-none md:shadow-none"
           onSubmit={handleSubmit((values) => {
             mutation.mutate(toCardPurchasePayload(values), { onSuccess: () => navigate('/credit-cards') })
           })}
@@ -85,7 +85,7 @@ export function CardPurchasePage() {
               )} />
             </div>
           </div>
-          <div className="-mt-6 overflow-hidden rounded-t-[28px] bg-white">
+          <div className="-mt-6 rounded-t-[28px] bg-white">
             <Controller control={control} name="purchaseDate" render={({ field }) => (
               <DateInput label="Compra" value={field.value} accentColor="#c72f4d" error={errors.purchaseDate?.message} onChange={field.onChange} />
             )} />

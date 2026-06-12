@@ -21,7 +21,7 @@ export function BottomDock({
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 grid h-[calc(64px+env(safe-area-inset-bottom))] grid-cols-5 items-end border-t border-[#e8e3ef] bg-white px-[max(8px,env(safe-area-inset-left))] pb-[calc(6px+env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_24px_rgba(34,24,48,0.04)] md:hidden max-[360px]:px-1"
+      className="fixed inset-x-0 bottom-0 z-30 grid h-[calc(var(--app-bottom-dock-height)+env(safe-area-inset-bottom))] grid-cols-5 items-end border-t border-[#e8e3ef] bg-white px-[max(8px,env(safe-area-inset-left))] pb-[calc(6px+env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_24px_rgba(34,24,48,0.04)] md:hidden max-[360px]:px-1"
       aria-label="Navegacao principal"
     >
       {firstItems.map((item) => (

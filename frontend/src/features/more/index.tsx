@@ -11,14 +11,14 @@ const links = [
 export function MorePage() {
   return (
     <DashboardLayout width="full">
-      <section className="flex min-h-svh w-full max-w-none flex-col bg-[#eaf3fb] md:overflow-hidden">
-        <header className="grid w-full gap-4 px-4 pb-4 pt-[calc(16px+env(safe-area-inset-top))] sm:px-5 md:px-8 md:pt-6 lg:px-10">
+      <section className="flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden bg-[#eaf3fb]">
+        <header className="grid w-full flex-none gap-4 px-4 pb-4 pt-[calc(16px+env(safe-area-inset-top))] sm:px-5 md:px-8 md:pt-6 lg:px-10">
           <h1 className="text-center text-[18px] font-semibold leading-tight text-[#18202f]">
             Mais Opcoes
           </h1>
         </header>
 
-        <div className="min-h-0 w-full flex-1 overflow-hidden rounded-t-[28px] bg-white pb-[calc(92px+env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_8px_rgba(17,24,39,0.04)] md:pb-0">
+        <div className="scrollbar-none min-h-0 w-full flex-1 overflow-y-auto overflow-x-hidden rounded-t-[28px] bg-white pb-[var(--app-mobile-content-bottom)] pt-2 shadow-[0_-1px_8px_rgba(17,24,39,0.04)] md:pb-0">
           {links.map(({ to, label, icon: Icon }) => (
             <Link
               key={to}

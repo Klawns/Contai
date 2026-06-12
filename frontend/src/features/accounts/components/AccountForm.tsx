@@ -61,7 +61,7 @@ export function AccountForm({ mode, account }: AccountFormProps) {
 
   return (
     <form
-      className="mx-auto min-h-svh w-full max-w-[520px] bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:flex md:min-h-svh md:max-w-none md:flex-col md:shadow-none"
+      className="scrollbar-none mx-auto h-full min-h-0 w-full max-w-[520px] overflow-y-auto overflow-x-hidden bg-white text-left shadow-[0_24px_70px_rgba(43,35,54,0.12)] md:mx-0 md:flex md:max-w-none md:flex-col md:shadow-none"
       onSubmit={handleSubmit((values) => {
         if (isEditing && account) {
           const payload: UpdateAccountPayload = {
@@ -129,7 +129,7 @@ export function AccountForm({ mode, account }: AccountFormProps) {
         </div>
       </div>
 
-      <div className="-mt-6 overflow-hidden rounded-t-[28px] border border-[#ece8f2] bg-white pb-[calc(84px+env(safe-area-inset-bottom))] md:flex md:w-full md:flex-1 md:flex-col md:overflow-visible md:px-8 md:py-7 lg:px-10">
+      <div className="-mt-6 rounded-t-[28px] border border-[#ece8f2] bg-white md:flex md:w-full md:flex-1 md:flex-col md:px-8 md:py-7 lg:px-10">
         <Controller
           control={control}
           name="bankIconId"
@@ -191,7 +191,7 @@ export function AccountForm({ mode, account }: AccountFormProps) {
           </p>
         ) : null}
 
-        <div className="sticky bottom-0 mt-4 border-t border-[#eee8f3] bg-white/96 px-4 py-4 backdrop-blur md:static md:border-t-0 md:bg-transparent md:px-0 md:pt-6 md:backdrop-blur-none">
+        <div className="sticky bottom-[var(--app-mobile-sticky-bottom)] mt-4 border-t border-[#eee8f3] bg-white/96 px-4 py-4 backdrop-blur md:static md:border-t-0 md:bg-transparent md:px-0 md:pt-6 md:backdrop-blur-none">
           <button
             type="submit"
             disabled={isPending}
