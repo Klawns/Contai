@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Check, Clock, Hash, Repeat2 } from 'lucide-react'
 import { useCreateTransaction } from '../hooks/useCreateTransaction.ts'
 import { useUpdateTransaction } from '../hooks/useUpdateTransaction.ts'
@@ -202,6 +203,9 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const navigate = useNavigate()
   const [isAddingCategory, setIsAddingCategory] = useState(false)
+  const [isMoreDetailsOpen, setIsMoreDetailsOpen] = useState(false)
+  const moreDetailsId = useId()
+  const shouldReduceMotion = useReducedMotion()
   const createTransactionMutation = useCreateTransaction(type)
   const updateTransactionMutation = useUpdateTransaction(
     type,
@@ -350,7 +354,7 @@ export function TransactionForm({
           })
         })}
       >
-        <div className={`${styles.header} w-full px-5 pb-14 pt-[calc(22px+env(safe-area-inset-top))] text-white md:px-8 md:pb-12 md:pt-7 lg:px-10 lg:pb-14`}>
+        <div className={`${styles.header} w-full px-5 pb-11 pt-[calc(16px+env(safe-area-inset-top))] text-white md:px-8 md:pb-12 md:pt-7 lg:px-10 lg:pb-14`}>
           <div className="grid grid-cols-[80px_minmax(0,1fr)_80px] items-center md:grid-cols-[minmax(0,1fr)_auto] md:gap-4">
             <button
               type="button"
@@ -366,7 +370,7 @@ export function TransactionForm({
           <h1 className="sr-only">
             {mode === 'edit' ? styles.editTitle : styles.createTitle}
           </h1>
-          <div className="mt-10">
+          <div className="mt-6 md:mt-10">
             <Controller
               control={control}
               name="amount"
@@ -382,7 +386,7 @@ export function TransactionForm({
           </div>
         </div>
 
-        <div className="-mt-6 rounded-t-[28px] bg-white md:rounded-t-[32px]">
+        <div className="-mt-6 rounded-t-[28px] bg-white pb-[calc(var(--app-mobile-content-bottom)+12px)] md:rounded-t-[32px] md:pb-0">
           {type !== 'transfer' ? (
             <Controller
               control={control}
@@ -490,42 +494,86 @@ export function TransactionForm({
                   />
                 )}
               />
-              <Controller
-                control={control}
-                name="recurrenceType"
-                render={({ field }) => (
-                  <>
-                    <div className="grid">
-                      <RecurrenceSwitchRow
-                        label="Fixa"
-                        checked={field.value === 'fixed'}
-                        onChange={(checked) => field.onChange(checked ? 'fixed' : 'none')}
-                      />
-                      {recurrenceType === 'fixed' ? renderRecurrenceFrequencyField() : null}
-                    </div>
-                    <div className="grid">
-                      <RecurrenceSwitchRow
-                        label="Parcelada"
-                        checked={field.value === 'repeat'}
-                        onChange={(checked) => field.onChange(checked ? 'repeat' : 'none')}
-                      />
-                      {recurrenceType === 'repeat' ? (
+              {!isMoreDetailsOpen ? (
+                <MoreDetailsButton
+                  label="Mais detalhes"
+                  accentColor={styles.accentColor}
+                  controlsId={moreDetailsId}
+                  isExpanded={false}
+                  onClick={() => setIsMoreDetailsOpen(true)}
+                />
+              ) : null}
+              <AnimatePresence initial={false}>
+                {isMoreDetailsOpen ? (
+                  <motion.div
+                    id={moreDetailsId}
+                    className="overflow-hidden"
+                    initial={shouldReduceMotion ? false : { height: 0, opacity: 0, y: -6 }}
+                    animate={{ height: 'auto', opacity: 1, y: 0 }}
+                    exit={
+                      shouldReduceMotion
+                        ? { height: 0, opacity: 0, y: 0 }
+                        : { height: 0, opacity: 0, y: -6 }
+                    }
+                    transition={
+                      shouldReduceMotion ? { duration: 0 } : { duration: 0.22, ease: 'easeOut' }
+                    }
+                  >
+                    <Controller
+                      control={control}
+                      name="recurrenceType"
+                      render={({ field }) => (
                         <>
-                          {renderRecurrenceFrequencyField()}
-                          {renderRecurrenceQuantityField()}
+                          <div className="grid">
+                            <RecurrenceSwitchRow
+                              label="Fixa"
+                              checked={field.value === 'fixed'}
+                              onChange={(checked) => field.onChange(checked ? 'fixed' : 'none')}
+                            />
+                            {recurrenceType === 'fixed' ? renderRecurrenceFrequencyField() : null}
+                          </div>
+                          <div className="grid">
+                            <RecurrenceSwitchRow
+                              label="Parcelada"
+                              checked={field.value === 'repeat'}
+                              onChange={(checked) => field.onChange(checked ? 'repeat' : 'none')}
+                            />
+                            {recurrenceType === 'repeat' ? (
+                              <>
+                                {renderRecurrenceFrequencyField()}
+                                {renderRecurrenceQuantityField()}
+                              </>
+                            ) : null}
+                          </div>
                         </>
-                      ) : null}
-                    </div>
-                  </>
-                )}
-              />
+                      )}
+                    />
+                    <Controller
+                      control={control}
+                      name="note"
+                      render={({ field }) => (
+                        <NoteInput value={field.value} onChange={field.onChange} />
+                      )}
+                    />
+                    <MoreDetailsButton
+                      label="Menos detalhes"
+                      accentColor={styles.accentColor}
+                      controlsId={moreDetailsId}
+                      isExpanded
+                      onClick={() => setIsMoreDetailsOpen(false)}
+                    />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </>
           )}
-          <Controller
-            control={control}
-            name="note"
-            render={({ field }) => <NoteInput value={field.value} onChange={field.onChange} />}
-          />
+          {type === 'transfer' ? (
+            <Controller
+              control={control}
+              name="note"
+              render={({ field }) => <NoteInput value={field.value} onChange={field.onChange} />}
+            />
+          ) : null}
           {hasMutationError ? (
             <p className="mx-4 mt-4 rounded-lg border border-[#f0caca] bg-[#fff7f7] px-3 py-2 text-[13px] font-medium text-[#b93838] md:mx-5">
               Nao foi possivel salvar a transacao.
@@ -546,6 +594,37 @@ export function TransactionForm({
         />
       ) : null}
     </>
+  )
+}
+
+type MoreDetailsButtonProps = {
+  label: string
+  accentColor: string
+  controlsId: string
+  isExpanded: boolean
+  onClick: () => void
+}
+
+function MoreDetailsButton({
+  label,
+  accentColor,
+  controlsId,
+  isExpanded,
+  onClick,
+}: MoreDetailsButtonProps) {
+  return (
+    <div className="border-b border-[#f0ebf5] px-4 py-2.5 text-center md:px-5 md:py-3">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-controls={controlsId}
+        className="min-h-8 px-2 text-[13px] font-semibold transition-opacity hover:opacity-80 focus-visible:rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7b2cff]"
+        style={{ color: accentColor }}
+        onClick={onClick}
+      >
+        {label}
+      </button>
+    </div>
   )
 }
 
